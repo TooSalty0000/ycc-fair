@@ -1,6 +1,6 @@
 'use client';
 
-import { Trophy, Medal, Star, Gift } from 'lucide-react';
+import { Trophy, Medal, Star } from 'lucide-react';
 import { useGame } from '../contexts/GameContext';
 
 export default function Leaderboard() {

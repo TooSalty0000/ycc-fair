@@ -18,6 +18,7 @@ export async function getDatabase() {
 }
 
 async function initializeDatabase() {
+  if (!db) throw new Error('Database not initialized');
   await db.exec(`
     -- Users table
     CREATE TABLE IF NOT EXISTS users (
@@ -102,6 +103,7 @@ async function initializeDatabase() {
 }
 
 async function insertInitialWords() {
+  if (!db) throw new Error('Database not initialized');
   const initialWords = [
     '사과', '책', '의자', '강아지', '코끼리', '꽃', '기타', '집',
     '얼음', '재킷', '열쇠', '램프', '산', '노트북', '바다', '연필',
@@ -121,6 +123,7 @@ async function insertInitialWords() {
 }
 
 async function ensureActiveWord() {
+  if (!db) throw new Error('Database not initialized');
   const activeWord = await db.get('SELECT * FROM words WHERE is_active = TRUE LIMIT 1');
   
   if (!activeWord) {
@@ -142,6 +145,7 @@ async function ensureActiveWord() {
 }
 
 async function addAdminColumn() {
+  if (!db) throw new Error('Database not initialized');
   // Check if is_admin column exists
   const columns = await db.all(`PRAGMA table_info(users)`);
   const hasAdminColumn = columns.some(col => col.name === 'is_admin');
@@ -153,6 +157,7 @@ async function addAdminColumn() {
 }
 
 async function migrateToCoupons() {
+  if (!db) throw new Error('Database not initialized');
   // Check if tokens table exists and has data
   const tokenExists = await db.get(`
     SELECT name FROM sqlite_master WHERE type='table' AND name='tokens'
@@ -187,6 +192,7 @@ function generateCouponCode(): string {
 }
 
 async function createAdminUser() {
+  if (!db) throw new Error('Database not initialized');
   // Check if admin user already exists
   const existingAdmin = await db.get('SELECT * FROM users WHERE username = ?', 'admin');
   
@@ -337,7 +343,7 @@ export async function confirmCoupon(userId: number, couponId: number) {
     SET status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP
     WHERE id = ? AND user_id = ? AND status = 'pending'
   `, couponId, userId);
-  return result.changes > 0;
+  return (result.changes ?? 0) > 0;
 }
 
 export async function getUserCouponCount(userId: number) {
