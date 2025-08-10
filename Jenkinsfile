@@ -68,6 +68,9 @@ JWT_SECRET=${JWT_SECRET}
                 sh 'docker-compose down || true'
                 // Remove any orphaned containers that might cause issues
                 sh 'docker-compose down --remove-orphans || true'
+                // Create data directory for database persistence with proper permissions
+                sh 'mkdir -p ./data'
+                sh 'chmod 755 ./data'
             }
         }
 

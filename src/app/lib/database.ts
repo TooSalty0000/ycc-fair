@@ -7,8 +7,13 @@ let db: Database | null = null;
 
 export async function getDatabase() {
   if (!db) {
+    // Use data directory for production, current directory for development
+    const dbPath = process.env.NODE_ENV === 'production' 
+      ? path.join(process.cwd(), 'data', 'database.sqlite')
+      : path.join(process.cwd(), 'database.sqlite');
+    
     db = await open({
-      filename: path.join(process.cwd(), 'database.sqlite'),
+      filename: dbPath,
       driver: sqlite3.Database
     });
     
