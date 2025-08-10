@@ -84,7 +84,7 @@ JWT_SECRET=${JWT_SECRET}
                     // Wait for application to be healthy
                     sh 'echo Waiting for application to start...'
                     sh 'sleep 30'
-                    sh 'curl -f http://localhost:3000 || exit 1'
+                    sh 'curl -f http://localhost:16181 || exit 1'
                     echo 'Application is running successfully!'
                 }
             }
