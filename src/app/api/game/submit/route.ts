@@ -35,7 +35,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify image with Gemini AI
+    console.log(`Processing submission for word: ${currentWord.word}`);
     const aiResult = await verifyImageWithGemini(imageData, currentWord.word);
+    console.log(`AI result:`, aiResult);
     
     if (!aiResult.success) {
       return NextResponse.json({

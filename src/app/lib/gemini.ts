@@ -29,11 +29,27 @@ export const verifyImageWithGemini = async (
   keyword: string
 ): Promise<ImageVerificationResult> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // Check if API key is available
+    if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+      console.error('Gemini API key not found');
+      throw new Error('AI verification service not configured');
+    }
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // Determine MIME type from base64 data
     const mimeType = imageData.match(/^data:image\/([a-z]+);base64,/)?.[1] || 'jpeg';
     const fullMimeType = `image/${mimeType}`;
+
+    // Check image size and log for debugging
+    const base64Length = imageData.length;
+    const imageSizeKB = Math.round((base64Length * 0.75) / 1024);
+    console.log(`Processing image: ${imageSizeKB}KB, keyword: ${keyword}`);
+
+    // Warn if image is very large (might cause timeout)
+    if (imageSizeKB > 4000) {
+      console.warn(`Large image detected: ${imageSizeKB}KB - this might cause processing delays`);
+    }
 
     const imagePart = base64ToGenerativeAIPart(imageData, fullMimeType);
 
@@ -165,7 +181,7 @@ export const verifyImageFallback = async (
 // Health check for Gemini API
 export const testGeminiConnection = async (): Promise<boolean> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent('Hello, respond with "OK"');
     const response = await result.response;
     const text = response.text();

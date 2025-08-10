@@ -27,10 +27,12 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
   const [error, setError] = useState<string>('');
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (newFacingMode?: 'user' | 'environment') => {
     try {
       setIsLoading(true);
       setError('');
+
+      const targetFacingMode = newFacingMode || facingMode;
 
       // Check if mediaDevices is supported
       if (!navigator.mediaDevices) {
@@ -42,7 +44,7 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
             getUserMedia(
               {
                 video: {
-                  facingMode: facingMode,
+                  facingMode: targetFacingMode,
                   width: { ideal: 1280, min: 640 },
                   height: { ideal: 720, min: 480 }
                 },
@@ -69,14 +71,20 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
         throw new Error('getUserMedia not supported on this browser');
       }
 
-      // Stop existing stream
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      // Stop existing stream only when switching cameras
+      if (newFacingMode) {
+        // Access current stream state directly to avoid dependency issues
+        setStream(currentStream => {
+          if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+          }
+          return null;
+        });
       }
 
       const constraints = {
         video: {
-          facingMode: facingMode,
+          facingMode: targetFacingMode,
           width: { ideal: 1280, min: 640 },
           height: { ideal: 720, min: 480 }
         },
@@ -110,20 +118,41 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
       setError(errorMessage);
       setIsLoading(false);
     }
-  }, [facingMode, stream]);
+  }, [facingMode]);
 
+  // Initialize camera once when component mounts
   useEffect(() => {
-    // Only start camera on client side
-    if (typeof window !== 'undefined') {
-      startCamera();
-    }
+    let mounted = true;
+    
+    const initializeCamera = async () => {
+      if (typeof window !== 'undefined' && mounted) {
+        // Small delay to ensure component is fully mounted
+        setTimeout(() => {
+          if (mounted) {
+            startCamera();
+          }
+        }, 100);
+      }
+    };
 
+    initializeCamera();
+
+    return () => {
+      mounted = false;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []); // Empty dependency array - only run once on mount
+
+  // Handle cleanup when component unmounts
+  useEffect(() => {
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [startCamera, stream]);
+  }, [stream]);
 
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current || isProcessing) return;
@@ -134,20 +163,31 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
 
     if (!context) return;
 
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Optimize image size for faster processing (max 800px width)
+    const maxWidth = 800;
+    const aspectRatio = video.videoHeight / video.videoWidth;
+    
+    if (video.videoWidth > maxWidth) {
+      canvas.width = maxWidth;
+      canvas.height = maxWidth * aspectRatio;
+    } else {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
 
     // Draw the video frame to canvas
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert to base64
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+    // Convert to base64 with reasonable quality (reduces file size)
+    const imageData = canvas.toDataURL('image/jpeg', 0.7);
     onCapture(imageData);
   };
 
-  const switchCamera = () => {
-    setFacingMode(current => current === 'user' ? 'environment' : 'user');
+  const switchCamera = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newFacingMode);
+    await startCamera(newFacingMode);
   };
 
   if (error) {
