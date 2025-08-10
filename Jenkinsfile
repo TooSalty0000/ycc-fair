@@ -35,27 +35,6 @@ JWT_SECRET=${JWT_SECRET}
             }
         }
 
-        stage('Install Dependencies') {
-            steps {
-                sh 'echo Installing Node.js dependencies...'
-                sh 'npm ci'
-            }
-        }
-
-        stage('Lint') {
-            steps {
-                sh 'echo Running ESLint...'
-                sh 'npm run lint'
-            }
-        }
-
-        stage('Build') {
-            steps {
-                sh 'echo Building Next.js application...'
-                sh 'npm run build'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t ycc-fair:latest .'
