@@ -11,21 +11,21 @@ export async function POST(request: NextRequest) {
 
     if (!username || !password) {
       return NextResponse.json(
-        { error: 'Username and password are required' },
+        { error: '사용자명과 비밀번호가 필요합니다' },
         { status: 400 }
       );
     }
 
     if (password.length < 6) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
+        { error: '비밀번호는 최소 6자 이상이어야 합니다' },
         { status: 400 }
       );
     }
 
     if (username.length < 3) {
       return NextResponse.json(
-        { error: 'Username must be at least 3 characters' },
+        { error: '사용자명은 최소 3자 이상이어야 합니다' },
         { status: 400 }
       );
     }
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       const isValidPassword = await bcrypt.compare(password, user.password_hash);
       if (!isValidPassword) {
         return NextResponse.json(
-          { error: 'Wrong password for existing username' },
+          { error: '기존 사용자명에 대한 잘못된 비밀번호입니다' },
           { status: 401 }
         );
       }
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: '내부 서버 오류' },
       { status: 500 }
     );
   }

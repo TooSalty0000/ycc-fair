@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useReducer, useEffect, ReactNode, useState } from 'react';
+import { createContext, useContext, useReducer, useEffect, ReactNode, useState, useCallback } from 'react';
 import { User, GameState, LeaderboardEntry, GameResult } from '../types';
 import { authService } from '../lib/auth';
 
@@ -8,7 +8,7 @@ interface GameContextType {
   user: User | null;
   gameState: GameState;
   leaderboard: LeaderboardEntry[];
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   submitPhoto: (imageData: string) => Promise<GameResult | null>;
   refreshLeaderboard: () => Promise<void>;
@@ -63,44 +63,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load current user and game state on mount
-  useEffect(() => {
-    loadInitialData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Poll for word changes every 10 seconds
-  useEffect(() => {
-    if (state.user) {
-      const interval = setInterval(loadCurrentWord, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [state.user]);
-
-  // Poll for leaderboard changes every 30 seconds
-  useEffect(() => {
-    if (state.user) {
-      const interval = setInterval(refreshLeaderboard, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [state.user]);
-
-  const loadInitialData = async () => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (user) {
-        dispatch({ type: 'SET_USER', payload: user });
-        await loadCurrentWord();
-        await refreshLeaderboard();
-      }
-    } catch (error) {
-      console.error('Failed to load initial data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadCurrentWord = async () => {
+  const loadCurrentWord = useCallback(async () => {
     try {
       // Get word data and submission status in parallel
       const [wordData, submissionStatus] = await Promise.all([
@@ -121,9 +84,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Failed to load current word:', error);
     }
-  };
+  }, []);
 
-  const refreshLeaderboard = async () => {
+  const refreshLeaderboard = useCallback(async () => {
     try {
       const leaderboardData = await authService.getLeaderboard(20);
       const formattedLeaderboard = leaderboardData.map((entry: { username: string; points: number; tokens: number }) => ({
@@ -135,9 +98,24 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Failed to load leaderboard:', error);
     }
+  }, []);
+
+  const loadInitialData = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (user) {
+        dispatch({ type: 'SET_USER', payload: user });
+        await loadCurrentWord();
+        await refreshLeaderboard();
+      }
+    } catch (error) {
+      console.error('Failed to load initial data:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const user = await authService.login(username, password);
       
@@ -155,10 +133,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       await loadCurrentWord();
       await refreshLeaderboard();
       
-      return true;
+      return { success: true };
     } catch (error) {
-      console.error('Login error:', error);
-      return false;
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during login';
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -229,6 +207,28 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       };
     }
   };
+
+  // Load current user and game state on mount
+  useEffect(() => {
+    loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Poll for word changes every 10 seconds
+  useEffect(() => {
+    if (state.user) {
+      const interval = setInterval(loadCurrentWord, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [state.user, loadCurrentWord]);
+
+  // Poll for leaderboard changes every 30 seconds
+  useEffect(() => {
+    if (state.user) {
+      const interval = setInterval(refreshLeaderboard, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [state.user, refreshLeaderboard]);
 
   return (
     <GameContext.Provider

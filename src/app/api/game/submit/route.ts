@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '../../../lib/auth-utils';
-import { getCurrentWord, createSubmission, addCoupon, checkWordCompletion } from '../../../lib/database';
+import { getCurrentWord, createSubmission, addCoupon, checkWordCompletion, getDatabase } from '../../../lib/database';
 import { verifyImageWithGemini } from '../../../lib/gemini';
 
 export async function POST(request: NextRequest) {
@@ -8,11 +8,19 @@ export async function POST(request: NextRequest) {
     // Verify authentication
     const authUser = await requireAuth(request);
     
+    // Prevent admin users from playing the game
+    if (authUser.isAdmin) {
+      return NextResponse.json(
+        { error: '관리자 사용자는 게임을 할 수 없습니다' },
+        { status: 403 }
+      );
+    }
+    
     const { imageData } = await request.json();
 
     if (!imageData) {
       return NextResponse.json(
-        { error: 'Image data is required' },
+        { error: '이미지 데이터가 필요합니다' },
         { status: 400 }
       );
     }
@@ -21,7 +29,7 @@ export async function POST(request: NextRequest) {
     const currentWord = await getCurrentWord();
     if (!currentWord) {
       return NextResponse.json(
-        { error: 'No active word found' },
+        { error: '활성 단어를 찾을 수 없습니다' },
         { status: 404 }
       );
     }
@@ -44,8 +52,20 @@ export async function POST(request: NextRequest) {
     const bonusPoints = Math.floor(aiResult.confidence / 20);
     const totalPoints = basePoints + bonusPoints;
     
-    // 30% chance for coupon
-    const gotCoupon = Math.random() < 0.3;
+    // Get coupon drop rate from settings (default 30%)
+    let couponDropRate = 30;
+    try {
+      const db = await getDatabase();
+      const setting = await db.get('SELECT value FROM settings WHERE key = ?', 'coupon_drop_rate') as { value: string } | undefined;
+      if (setting) {
+        couponDropRate = parseInt(setting.value);
+      }
+    } catch (error) {
+      console.error('Failed to get coupon drop rate:', error);
+    }
+    
+    // Check if user gets a coupon based on drop rate
+    const gotCoupon = Math.random() < (couponDropRate / 100);
 
     try {
       // Create submission record
@@ -71,7 +91,7 @@ export async function POST(request: NextRequest) {
         success: true,
         points: totalPoints,
         token: gotCoupon,
-        message: `Great! Found "${currentWord.word}" in your photo!`,
+        message: `훌륭합니다! 사진에서 "${currentWord.word}"를 찾았습니다!`,
         confidence: aiResult.confidence,
         wordProgressed: !!nextWord,
         nextWord: nextWord ? nextWord.word : null
@@ -83,7 +103,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: false,
           points: 0,
-          message: `You've already found "${currentWord.word}"! Try the current word.`,
+          message: `이미 "${currentWord.word}"를 찾으셨습니다! 현재 단어를 시도해보세요.`,
           alreadySubmitted: true
         });
       }

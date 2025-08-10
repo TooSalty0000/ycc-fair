@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  ArrowLeft, 
   Users, 
   Gift, 
   Settings, 
@@ -11,8 +10,9 @@ import {
   Play, 
   RotateCcw,
   Shield,
-  Calendar,
-  Trophy
+  Trophy,
+  LogOut,
+  Key
 } from 'lucide-react';
 
 interface UserStat {
@@ -43,33 +43,43 @@ interface Word {
   created_at: string;
   activated_at?: string;
   completed_at?: string;
-  required_completions: number;
+  current_completions: number;
 }
 
-export default function AdminPage({ onBack }: { onBack: () => void }) {
+export default function AdminPage({ onLogout }: { onLogout?: () => void }) {
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState<UserStat[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [words, setWords] = useState<Word[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newWord, setNewWord] = useState('');
-  const [newRequiredCompletions, setNewRequiredCompletions] = useState(5);
   const [resetPasswordUserId, setResetPasswordUserId] = useState<number | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [couponDropRate, setCouponDropRate] = useState(30);
+  const [defaultRequiredCompletions, setDefaultRequiredCompletions] = useState(5);
 
   useEffect(() => {
     loadData();
   }, []);
 
+
   const loadData = async () => {
     try {
-      const [statsResponse, wordsResponse] = await Promise.all([
+      const [statsResponse, wordsResponse, settingsResponse] = await Promise.all([
         fetch('/api/admin/stats', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('authToken')}`
           }
         }),
         fetch('/api/admin/words', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('authToken')}`
+          }
+        }),
+        fetch('/api/admin/settings', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('authToken')}`
           }
@@ -85,6 +95,14 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
       if (wordsResponse.ok) {
         const wordsData = await wordsResponse.json();
         setWords(wordsData.words || []);
+      }
+
+      if (settingsResponse.ok) {
+        const settingsData = await settingsResponse.json();
+        setCouponDropRate(settingsData.coupon_drop_rate || 30);
+        setDefaultRequiredCompletions(settingsData.default_required_completions || 5);
+        
+        // Don't set currentWordCompletions here, it should be set when activeWord changes
       }
 
     } catch (error) {
@@ -106,7 +124,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
           action,
           wordId,
           word: newWord,
-          requiredCompletions: requiredCompletions || newRequiredCompletions
+          requiredCompletions: requiredCompletions || defaultRequiredCompletions
         })
       });
 
@@ -115,16 +133,56 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
         await loadData();
       } else {
         const errorData = await response.json();
-        alert(`Error: ${errorData.error}`);
+        alert(`오류: ${errorData.error}`);
       }
     } catch (error) {
       console.error('Word action error:', error);
-      alert('An error occurred');
+      alert('오류가 발생했습니다');
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!currentPassword || !newAdminPassword) {
+      alert('현재 비밀번호와 새 비밀번호를 모두 입력해주세요');
+      return;
+    }
+
+    if (newAdminPassword.length < 6) {
+      alert('새 비밀번호는 최소 6자 이상이어야 합니다');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword: newAdminPassword
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(result.message);
+        setShowPasswordChange(false);
+        setCurrentPassword('');
+        setNewAdminPassword('');
+      } else {
+        alert(`오류: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Password change error:', error);
+      alert('오류가 발생했습니다');
     }
   };
 
   const handleUserAction = async (action: string, userId: number) => {
-    if (action === 'delete' && !confirm('Are you sure you want to delete this user? This will also delete all their submissions and coupons.')) {
+    if (action === 'delete' && !confirm('이 사용자를 삭제하시겠습니까? 모든 제출 기록과 쿠폰도 함께 삭제됩니다.')) {
       return;
     }
 
@@ -150,11 +208,11 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
         setNewPassword('');
         await loadData();
       } else {
-        alert(`Error: ${result.error}`);
+        alert(`오류: ${result.error}`);
       }
     } catch (error) {
       console.error('User action error:', error);
-      alert('An error occurred');
+      alert('오류가 발생했습니다');
     }
   };
 
@@ -167,6 +225,58 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
     });
   };
 
+  const handleCouponRateChange = async () => {
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          action: 'updateCouponRate',
+          rate: couponDropRate
+        })
+      });
+
+      if (response.ok) {
+        alert('쿠폰 드롭률이 업데이트되었습니다!');
+      } else {
+        const errorData = await response.json();
+        alert(`오류: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Settings update error:', error);
+      alert('오류가 발생했습니다');
+    }
+  };
+
+  const handleDefaultCompletionsChange = async () => {
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          action: 'updateDefaultCompletions',
+          completions: defaultRequiredCompletions
+        })
+      });
+
+      if (response.ok) {
+        alert('기본 필요 완료 수가 업데이트되었습니다!');
+      } else {
+        const errorData = await response.json();
+        alert(`오류: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Settings update error:', error);
+      alert('오류가 발생했습니다');
+    }
+  };
+
   const activeWord = words.find(w => w.is_active);
   const totalUsers = users.length;
   const totalCoupons = coupons.length;
@@ -177,7 +287,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading admin panel...</p>
+          <p className="text-gray-600">관리자 패널 불러오는 중...</p>
         </div>
       </div>
     );
@@ -189,26 +299,100 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <button
-              onClick={onBack}
-              className="flex items-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to Game
-            </button>
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-purple-600 flex items-center">
-                <Shield className="h-6 w-6 mr-2" />
-                Admin Panel
-              </h1>
-              <p className="text-sm text-gray-600">YCC Fair Hunt Management</p>
+            <div className="flex items-center space-x-3">
+              <img src="/ycc_logo.png" alt="YCC 로고" className="h-12 w-12 rounded-lg shadow-sm" />
+              <div>
+                <h2 className="text-lg font-bold text-blue-600">YCC</h2>
+                <p className="text-xs text-blue-500">루키즈</p>
+              </div>
             </div>
-            <div className="w-24"></div>
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-purple-600 flex items-center justify-center">
+                <Shield className="h-6 w-6 mr-2" />
+                관리자 패널
+              </h1>
+              <p className="text-sm text-gray-600">YCC/YCC 루키즈 동아리 박람회 보물찾기 관리</p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowPasswordChange(!showPasswordChange)}
+                className="flex items-center px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+              >
+                <Key className="h-4 w-4 mr-1" />
+                비밀번호 변경
+              </button>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="flex items-center px-3 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                >
+                  <LogOut className="h-4 w-4 mr-1" />
+                  로그아웃
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Password Change Form */}
+        {showPasswordChange && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6 text-black">
+            <h2 className="text-lg font-semibold mb-4 flex items-center">
+              <Key className="h-5 w-5 mr-2" />
+              관리자 비밀번호 변경
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  현재 비밀번호
+                </label>
+                <input
+                  id="currentPassword"
+                  type="password"
+                  placeholder="현재 비밀번호를 입력하세요"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="newAdminPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  새 비밀번호 (최소 6자)
+                </label>
+                <input
+                  id="newAdminPassword"
+                  type="password"
+                  placeholder="새 비밀번호를 입력하세요"
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+            </div>
+            <div className="flex items-center space-x-3 mt-4">
+              <button
+                onClick={handlePasswordChange}
+                disabled={!currentPassword || !newAdminPassword}
+                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm"
+              >
+                비밀번호 변경
+              </button>
+              <button
+                onClick={() => {
+                  setShowPasswordChange(false);
+                  setCurrentPassword('');
+                  setNewAdminPassword('');
+                }}
+                className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 text-center">
@@ -216,7 +400,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
               <Users className="h-6 w-6 text-blue-600" />
             </div>
             <h3 className="text-2xl font-bold text-blue-600">{totalUsers}</h3>
-            <p className="text-sm text-gray-600">Total Users</p>
+            <p className="text-sm text-gray-600">전체 사용자</p>
           </div>
           
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 text-center">
@@ -224,34 +408,71 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
               <Gift className="h-6 w-6 text-yellow-600" />
             </div>
             <h3 className="text-2xl font-bold text-yellow-600">{totalCoupons}</h3>
-            <p className="text-sm text-gray-600">Total Coupons</p>
+            <p className="text-sm text-gray-600">발급된 쿠폰</p>
           </div>
           
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 text-center">
             <div className="mx-auto h-12 w-12 bg-orange-100 rounded-full flex items-center justify-center mb-3">
-              <Settings className="h-6 w-6 text-orange-600" />
+              <Gift className="h-6 w-6 text-orange-600" />
             </div>
             <h3 className="text-2xl font-bold text-orange-600">{pendingCoupons}</h3>
-            <p className="text-sm text-gray-600">Pending Coupons</p>
+            <p className="text-sm text-gray-600">대기 중인 쿠폰</p>
           </div>
           
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 text-center">
             <div className="mx-auto h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
               <Trophy className="h-6 w-6 text-green-600" />
             </div>
-            <h3 className="text-2xl font-bold text-green-600">{activeWord?.word || 'None'}</h3>
-            <p className="text-sm text-gray-600">Current Word</p>
+            <h3 className="text-2xl font-bold text-green-600">{activeWord?.word || '없음'}</h3>
+            <p className="text-sm text-gray-600">현재 단어</p>
           </div>
         </div>
+
+        {/* Current Game Status */}
+        {activeWord && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">현재 게임 상태</h2>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-green-100 rounded-full p-3">
+                    <Trophy className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-green-700">현재 활성 단어: &quot;{activeWord.word}&quot;</h3>
+                    <p className="text-sm text-gray-600">
+                      진행상황: {activeWord.current_completions} / {defaultRequiredCompletions} 완료 
+                      ({Math.round((activeWord.current_completions / defaultRequiredCompletions) * 100)}%)
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="w-32 bg-gray-200 rounded-full h-3">
+                    <div 
+                      className="bg-green-600 h-3 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${Math.min((activeWord.current_completions / defaultRequiredCompletions) * 100, 100)}%` 
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {Math.max(0, defaultRequiredCompletions - activeWord.current_completions)}명 더 필요
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8 px-6">
               {[
-                { id: 'users', label: 'Users & Stats', icon: Users },
-                { id: 'coupons', label: 'Coupons', icon: Gift },
-                { id: 'words', label: 'Word Management', icon: Settings }
+                { id: 'users', label: '사용자 & 통계', icon: Users },
+                { id: 'coupons', label: '쿠폰', icon: Gift },
+                { id: 'words', label: '단어 관리', icon: Plus },
+                { id: 'settings', label: '설정', icon: Settings }
               ].map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
@@ -269,24 +490,24 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
             </nav>
           </div>
 
-          <div className="p-6">
+          <div className="p-6 text-black">
             {/* Users Tab */}
             {activeTab === 'users' && (
               <div>
-                <h2 className="text-xl font-semibold mb-4">User Statistics & Management</h2>
+                <h2 className="text-xl font-semibold mb-4">사용자 통계 & 관리</h2>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Points</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coupons</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Words Completed</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">사용자</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">점수</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">쿠폰</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">완료된 단어</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">가입일</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-gray-200 text-black">
                       {users.map((user) => (
                         <tr key={user.id} className={user.is_admin ? 'bg-purple-50' : ''}>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -319,7 +540,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
                                   <div className="flex items-center space-x-2">
                                     <input
                                       type="password"
-                                      placeholder="New password"
+                                      placeholder="새 비밀번호"
                                       value={newPassword}
                                       onChange={(e) => setNewPassword(e.target.value)}
                                       className="px-2 py-1 border border-gray-300 rounded text-xs"
@@ -328,7 +549,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
                                       onClick={() => handleUserAction('resetPassword', user.id)}
                                       className="text-green-600 hover:text-green-900 text-xs"
                                     >
-                                      Save
+                                      저장
                                     </button>
                                     <button
                                       onClick={() => {
@@ -337,7 +558,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
                                       }}
                                       className="text-gray-600 hover:text-gray-900 text-xs"
                                     >
-                                      Cancel
+                                      취소
                                     </button>
                                   </div>
                                 ) : (
@@ -347,14 +568,14 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
                                       className="text-indigo-600 hover:text-indigo-900 flex items-center"
                                     >
                                       <RotateCcw className="h-3 w-3 mr-1" />
-                                      Reset Password
+                                      비밀번호 재설정
                                     </button>
                                     <button
                                       onClick={() => handleUserAction('delete', user.id)}
                                       className="text-red-600 hover:text-red-900 flex items-center"
                                     >
                                       <Trash2 className="h-3 w-3 mr-1" />
-                                      Delete
+                                      삭제
                                     </button>
                                   </>
                                 )}
@@ -372,17 +593,17 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
             {/* Coupons Tab */}
             {activeTab === 'coupons' && (
               <div>
-                <h2 className="text-xl font-semibold mb-4">Coupon Management</h2>
+                <h2 className="text-xl font-semibold mb-4">쿠폰 관리</h2>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Word</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confirmed</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">코드</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">사용자</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">단어</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">생성일</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">확인일</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -399,7 +620,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
                                 ? 'bg-green-100 text-green-800'
                                 : 'bg-yellow-100 text-yellow-800'
                             }`}>
-                              {coupon.status}
+                              {coupon.status === 'confirmed' ? '확인됨' : '대기 중'}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(coupon.created_at)}</td>
@@ -417,15 +638,15 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
             {/* Words Tab */}
             {activeTab === 'words' && (
               <div>
-                <h2 className="text-xl font-semibold mb-4">Word Management</h2>
+                <h2 className="text-xl font-semibold mb-4">단어 관리</h2>
                 
                 {/* Add New Word */}
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h3 className="text-sm font-medium text-gray-900 mb-3">Add New Word</h3>
+                  <h3 className="text-sm font-medium text-gray-900 mb-3">새 단어 추가</h3>
                   <div className="flex items-center space-x-4">
                     <input
                       type="text"
-                      placeholder="Enter new word..."
+                      placeholder="새 단어를 입력하세요..."
                       value={newWord}
                       onChange={(e) => setNewWord(e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
@@ -436,52 +657,22 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
                       className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm"
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Word
+                      단어 추가
                     </button>
                   </div>
                 </div>
 
-                {/* Current Active Word */}
-                {activeWord && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                    <h3 className="text-sm font-medium text-green-900 mb-2">Current Active Word</h3>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-2xl font-bold text-green-700">{activeWord.word}</p>
-                        <p className="text-sm text-green-600">
-                          Requires {activeWord.required_completions} completions to advance
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="number"
-                          value={newRequiredCompletions}
-                          onChange={(e) => setNewRequiredCompletions(parseInt(e.target.value) || 5)}
-                          min="1"
-                          max="20"
-                          className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
-                        />
-                        <button
-                          onClick={() => handleWordAction('updateRequiredCompletions', activeWord.id)}
-                          className="text-sm text-purple-600 hover:text-purple-900"
-                        >
-                          Update
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Words Table */}
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Word</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Required</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">단어</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">진행상황</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">생성일</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -498,11 +689,25 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
                                 ? 'bg-gray-100 text-gray-800'
                                 : 'bg-blue-100 text-blue-800'
                             }`}>
-                              {word.is_active ? 'Active' : word.completed_at ? 'Completed' : 'Ready'}
+                              {word.is_active ? '활성' : word.completed_at ? '완료됨' : '준비됨'}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {word.required_completions}
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium">
+                                {word.current_completions} / {defaultRequiredCompletions}
+                              </span>
+                              <div className="w-16 bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className={`h-2 rounded-full transition-all duration-300 ${
+                                    word.is_active ? 'bg-green-600' : word.completed_at ? 'bg-blue-600' : 'bg-gray-400'
+                                  }`}
+                                  style={{ 
+                                    width: `${Math.min((word.current_completions / defaultRequiredCompletions) * 100, 100)}%` 
+                                  }}
+                                />
+                              </div>
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {formatDate(word.created_at)}
@@ -514,7 +719,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
                                 className="text-green-600 hover:text-green-900 flex items-center"
                               >
                                 <Play className="h-3 w-3 mr-1" />
-                                Activate
+                                활성화
                               </button>
                             )}
                             {!word.is_active && !word.completed_at && (
@@ -523,7 +728,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
                                 className="text-red-600 hover:text-red-900 flex items-center"
                               >
                                 <Trash2 className="h-3 w-3 mr-1" />
-                                Remove
+                                삭제
                               </button>
                             )}
                           </td>
@@ -531,6 +736,125 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {/* Settings Tab */}
+            {activeTab === 'settings' && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">게임 설정</h2>
+                
+                {/* Coupon Drop Rate */}
+                <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">쿠폰 드롭률</h3>
+                      <p className="text-sm text-gray-600">플레이어가 성공적인 제출 후 쿠폰을 받을 확률</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-purple-600">{couponDropRate}%</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="couponRate" className="block text-sm font-medium text-gray-700 mb-2">
+                        드롭률 (0-100%)
+                      </label>
+                      <div className="flex items-center space-x-4 text-black">
+                        <input
+                          id="couponRate"
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={couponDropRate}
+                          onChange={(e) => setCouponDropRate(parseInt(e.target.value))}
+                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={couponDropRate}
+                          onChange={(e) => setCouponDropRate(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm text-center"
+                        />
+                        <span className="text-sm text-gray-500">%</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center pt-4">
+                      <div className="text-sm text-gray-600">
+                        <p>• 0%: 쿠폰 지급 안함</p>
+                        <p>• 30%: 기본 설정 (권장)</p>
+                        <p>• 100%: 매번 쿠폰 지급</p>
+                      </div>
+                      <button
+                        onClick={handleCouponRateChange}
+                        className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        설정 저장
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Default Required Completions */}
+                <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">기본 필요 완료 수</h3>
+                      <p className="text-sm text-gray-600">새로운 단어가 다음 단계로 진행하기 위해 필요한 기본 제출 수</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-purple-600">{defaultRequiredCompletions}명</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="defaultCompletions" className="block text-sm font-medium text-gray-700 mb-2">
+                        필요 완료 수 (1-20명)
+                      </label>
+                      <div className="flex items-center space-x-4">
+                        <input
+                          id="defaultCompletions"
+                          type="range"
+                          min="1"
+                          max="20"
+                          value={defaultRequiredCompletions}
+                          onChange={(e) => setDefaultRequiredCompletions(parseInt(e.target.value))}
+                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={defaultRequiredCompletions}
+                          onChange={(e) => setDefaultRequiredCompletions(Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm text-center"
+                        />
+                        <span className="text-sm text-gray-500">명</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center pt-4">
+                      <div className="text-sm text-gray-600">
+                        <p>• 낮은 수: 빠른 진행, 더 많은 단어</p>
+                        <p>• 높은 수: 모든 플레이어가 참여할 시간</p>
+                        <p>• 기본값: 5명 (권장)</p>
+                      </div>
+                      <button
+                        onClick={handleDefaultCompletionsChange}
+                        className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        설정 저장
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

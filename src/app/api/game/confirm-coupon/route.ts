@@ -27,14 +27,14 @@ export async function POST(request: NextRequest) {
 
     if (!success) {
       return NextResponse.json(
-        { error: 'Coupon not found or already confirmed' },
+        { error: '쿠폰을 찾을 수 없거나 이미 확인되었습니다' },
         { status: 404 }
       );
     }
 
     return NextResponse.json({ 
       success: true,
-      message: 'Coupon confirmed! You can now visit the booth to claim your prize.' 
+      message: '쿠폰이 확인되었습니다! 이제 부스를 방문하여 상품을 받아가세요.' 
     });
 
   } catch (error) {

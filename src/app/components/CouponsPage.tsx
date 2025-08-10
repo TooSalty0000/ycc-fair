@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Gift, ArrowLeft, Calendar, Trophy, Check, AlertCircle } from 'lucide-react';
+import { Gift, ArrowLeft, Trophy, Check, AlertCircle } from 'lucide-react';
 import { useGame } from '../contexts/GameContext';
 
 interface Coupon {
@@ -93,18 +93,26 @@ export default function CouponsPage({ onBack }: { onBack: () => void }) {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <img src="/ycc_logo.png" alt="YCC 로고" className="h-12 w-12 rounded-lg shadow-sm" />
+              <div>
+                <h2 className="text-lg font-bold text-indigo-600">YCC</h2>
+                <p className="text-xs text-indigo-500">루키즈</p>
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <h1 className="text-xl font-bold text-indigo-600">내 쿠폰</h1>
+              <p className="text-sm text-gray-600">획득한 쿠폰을 관리하세요</p>
+            </div>
+            
             <button
               onClick={onBack}
               className="flex items-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to Game
+              게임으로 돌아가기
             </button>
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-indigo-600">My Coupons</h1>
-              <p className="text-sm text-gray-600">Booth prizes from photo challenges</p>
-            </div>
-            <div className="w-24"></div> {/* Spacer for centering */}
           </div>
         </div>
       </header>
@@ -117,7 +125,7 @@ export default function CouponsPage({ onBack }: { onBack: () => void }) {
               <Gift className="h-6 w-6 text-yellow-600" />
             </div>
             <h3 className="text-2xl font-bold text-yellow-600">{coupons.length}</h3>
-            <p className="text-sm text-gray-600">Total Earned</p>
+            <p className="text-sm text-gray-600">총 획득</p>
           </div>
           
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 text-center">
@@ -125,7 +133,7 @@ export default function CouponsPage({ onBack }: { onBack: () => void }) {
               <AlertCircle className="h-6 w-6 text-orange-600" />
             </div>
             <h3 className="text-2xl font-bold text-orange-600">{pendingCoupons.length}</h3>
-            <p className="text-sm text-gray-600">Pending</p>
+            <p className="text-sm text-gray-600">대기 중</p>
           </div>
           
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 text-center">
@@ -133,28 +141,28 @@ export default function CouponsPage({ onBack }: { onBack: () => void }) {
               <Check className="h-6 w-6 text-green-600" />
             </div>
             <h3 className="text-2xl font-bold text-green-600">{confirmedCoupons.length}</h3>
-            <p className="text-sm text-gray-600">Confirmed</p>
+            <p className="text-sm text-gray-600">확인됨</p>
           </div>
         </div>
 
         {isLoading ? (
           <div className="bg-white rounded-lg shadow-sm p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading your coupons...</p>
+            <p className="text-gray-500">쿠폰을 불러오는 중...</p>
           </div>
         ) : coupons.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm p-8 text-center">
             <Gift className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Coupons Yet</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">아직 쿠폰이 없습니다</h3>
             <p className="text-gray-600 mb-6">
-              Keep taking photos to earn coupons! Each successful submission has a 30% chance of earning a booth coupon.
+              계속 사진을 찍어서 쿠폰을 획득하세요! 각 성공적인 제출마다 30%의 확률로 부스 쿠폰을 얻을 수 있습니다.
             </p>
             <button
               onClick={onBack}
               className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
             >
               <Trophy className="h-5 w-5 mr-2" />
-              Start Playing
+              게임 시작하기
             </button>
           </div>
         ) : (
@@ -162,7 +170,7 @@ export default function CouponsPage({ onBack }: { onBack: () => void }) {
             {/* Pending Coupons */}
             {pendingCoupons.length > 0 && (
               <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">🎁 Available Coupons</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">🎁 사용 가능한 쿠폰</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {pendingCoupons.map((coupon) => (
                     <div key={coupon.id} className="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl p-6 shadow-lg">
@@ -172,21 +180,21 @@ export default function CouponsPage({ onBack }: { onBack: () => void }) {
                             <Gift className="h-6 w-6 text-white" />
                           </div>
                           <div>
-                            <h4 className="text-lg font-bold text-gray-900">Booth Prize</h4>
-                            <p className="text-sm text-gray-600">From "{coupon.word}" challenge</p>
+                            <h4 className="text-lg font-bold text-gray-900">부스 상품</h4>
+                            <p className="text-sm text-gray-600">&quot;{coupon.word}&quot; 챌린지에서</p>
                           </div>
                         </div>
                       </div>
                       
                       <div className="bg-white rounded-lg p-4 mb-4 border border-yellow-300">
-                        <p className="text-sm font-medium text-gray-700 mb-2">Coupon Code:</p>
+                        <p className="text-sm font-medium text-gray-700 mb-2">쿠폰 코드:</p>
                         <p className="text-2xl font-mono font-bold text-center text-yellow-700 bg-yellow-100 py-2 rounded">
                           {coupon.coupon_code}
                         </p>
                       </div>
                       
                       <p className="text-sm text-gray-600 mb-4 text-center">
-                        📍 <strong>Come to the booth to get your prize!</strong>
+                        📍 <strong>부스에 와서 상품을 받아가세요!</strong>
                       </p>
                       
                       <button
@@ -197,18 +205,18 @@ export default function CouponsPage({ onBack }: { onBack: () => void }) {
                         {confirmingCouponId === coupon.id ? (
                           <>
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Confirming...
+                            확인 중...
                           </>
                         ) : (
                           <>
                             <Check className="h-4 w-4 mr-2" />
-                            Confirm Received
+                            수령 확인
                           </>
                         )}
                       </button>
                       
                       <p className="text-xs text-gray-500 mt-2 text-center">
-                        Earned {formatDate(coupon.created_at)}
+                        {formatDate(coupon.created_at)}에 획득
                       </p>
                     </div>
                   ))}
@@ -219,7 +227,7 @@ export default function CouponsPage({ onBack }: { onBack: () => void }) {
             {/* Confirmed Coupons */}
             {confirmedCoupons.length > 0 && (
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">✅ Used Coupons</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">✅ 사용한 쿠폰</h2>
                 <div className="space-y-3">
                   {confirmedCoupons.map((coupon) => (
                     <div key={coupon.id} className="bg-white border border-gray-200 rounded-lg p-4 opacity-75">
@@ -230,12 +238,12 @@ export default function CouponsPage({ onBack }: { onBack: () => void }) {
                           </div>
                           <div>
                             <h4 className="font-medium text-gray-900">{coupon.coupon_code}</h4>
-                            <p className="text-sm text-gray-600">From "{coupon.word}" challenge</p>
+                            <p className="text-sm text-gray-600">&quot;{coupon.word}&quot; 챌린지에서</p>
                           </div>
                         </div>
                         <div className="text-right">
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Used
+                            사용됨
                           </span>
                           <p className="text-xs text-gray-500 mt-1">
                             {coupon.confirmed_at && formatDate(coupon.confirmed_at)}
@@ -252,12 +260,12 @@ export default function CouponsPage({ onBack }: { onBack: () => void }) {
 
         {/* Instructions */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h4 className="text-lg font-semibold text-blue-900 mb-3">📋 How to Use Your Coupons</h4>
+          <h4 className="text-lg font-semibold text-blue-900 mb-3">📋 쿠폰 사용 방법</h4>
           <div className="space-y-2 text-sm text-blue-800">
-            <p>• <strong>Show your coupon code</strong> to any YCC booth operator</p>
-            <p>• <strong>Present this screen</strong> with the coupon code clearly visible</p>
-            <p>• <strong>Click "Confirm Received"</strong> after getting your prize</p>
-            <p>• <strong>Keep playing</strong> to earn more coupons throughout the fair!</p>
+            <p>• <strong>쿠폰 코드를 보여주세요</strong> YCC 부스 운영자에게</p>
+            <p>• <strong>이 화면을 제시하세요</strong> 쿠폰 코드가 명확히 보이도록</p>
+            <p>• <strong>&quot;수령 확인&quot;을 클릭하세요</strong> 상품을 받은 후</p>
+            <p>• <strong>계속 플레이하세요</strong> 박람회 내내 더 많은 쿠폰을 획득하기 위해!</p>
           </div>
         </div>
       </main>

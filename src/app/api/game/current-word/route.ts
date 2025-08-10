@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentWord } from '../../../lib/database';
+import { getCurrentWord, getDefaultRequiredCompletions } from '../../../lib/database';
 import { requireAuth } from '../../../lib/auth-utils';
 
 export async function GET(request: NextRequest) {
@@ -7,8 +7,11 @@ export async function GET(request: NextRequest) {
     // Verify authentication
     await requireAuth(request);
 
-    // Get current word
-    const currentWord = await getCurrentWord();
+    // Get current word and required completions
+    const [currentWord, requiredCompletions] = await Promise.all([
+      getCurrentWord(),
+      getDefaultRequiredCompletions()
+    ]);
 
     if (!currentWord) {
       return NextResponse.json(
@@ -21,9 +24,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       id: currentWord.id,
       word: currentWord.word,
-      progress: Math.min(currentWord.current_completions / currentWord.required_completions, 1),
+      progress: Math.min(currentWord.current_completions / requiredCompletions, 1),
       totalSubmissions: currentWord.current_completions,
-      requiredSubmissions: currentWord.required_completions,
+      requiredSubmissions: requiredCompletions,
       isActive: true
     });
 

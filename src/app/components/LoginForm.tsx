@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { User, LogIn } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import { useGame } from '../contexts/GameContext';
 
 export default function LoginForm() {
@@ -17,31 +17,31 @@ export default function LoginForm() {
     setError('');
 
     if (!username.trim() || !password.trim()) {
-      setError('Username and password are required');
+      setError('사용자명과 비밀번호를 입력해주세요');
       setIsLoading(false);
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('비밀번호는 최소 6자 이상이어야 합니다');
       setIsLoading(false);
       return;
     }
 
     if (username.length < 3) {
-      setError('Username must be at least 3 characters');
+      setError('사용자명은 최소 3자 이상이어야 합니다');
       setIsLoading(false);
       return;
     }
 
     try {
-      const success = await login(username, password);
-      if (!success) {
-        setError('Authentication failed. Please check your credentials.');
+      const result = await login(username, password);
+      if (!result.success) {
+        setError(result.error || '인증에 실패했습니다. 사용자명과 비밀번호를 확인해주세요.');
       }
     } catch (error) {
       console.error('Auth error:', error);
-      setError('An error occurred. Please try again.');
+      setError('오류가 발생했습니다. 다시 시도해주세요.');
     }
     
     setIsLoading(false);
@@ -52,7 +52,7 @@ export default function LoginForm() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">로딩 중...</p>
         </div>
       </div>
     );
@@ -62,12 +62,15 @@ export default function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-md w-full space-y-6">
         <div className="text-center">
-          <div className="mx-auto h-20 w-20 bg-indigo-600 rounded-full flex items-center justify-center mb-4">
-            <User className="h-10 w-10 text-white" />
+          <div className="mx-auto mb-6">
+            <img src="/ycc_logo.png" alt="YCC 로고" className="h-20 w-20 rounded-xl shadow-lg mx-auto mb-4" />
+            <div>
+              <h2 className="text-2xl font-bold text-indigo-600">YCC/YCC 루키즈</h2>
+              <p className="text-lg text-gray-700">동아리 박람회 보물찾기</p>
+            </div>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900">YCC Fair Hunt</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Join the photo scavenger hunt adventure!
+            사진 보물찾기 모험에 참여하세요!
           </p>
         </div>
         
@@ -75,7 +78,7 @@ export default function LoginForm() {
           
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-              Username
+              사용자명
             </label>
             <input
               id="username"
@@ -83,7 +86,7 @@ export default function LoginForm() {
               type="text"
               required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Enter your username"
+              placeholder="사용자명을 입력하세요"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
@@ -92,7 +95,7 @@ export default function LoginForm() {
           
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
+              비밀번호
             </label>
             <input
               id="password"
@@ -101,7 +104,7 @@ export default function LoginForm() {
               required
               minLength={6}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Enter your password (min 6 chars)"
+              placeholder="비밀번호를 입력하세요 (최소 6자)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
@@ -124,7 +127,7 @@ export default function LoginForm() {
             ) : (
               <>
                 <LogIn className="h-5 w-5 mr-2" />
-                Join Game
+                게임 참여
               </>
             )}
           </button>
@@ -139,10 +142,10 @@ export default function LoginForm() {
               </div>
               <div>
                 <h3 className="text-sm font-medium text-amber-800">
-                  Important: Password Recovery
+                  중요: 비밀번호 복구
                 </h3>
                 <p className="text-xs text-amber-700 mt-1">
-                  ⚠️ <strong>You will NOT be able to recover your account if you forget your password.</strong> This is a local system without password recovery options. Please choose a memorable password!
+                  ⚠️ <strong>비밀번호를 잊어버리면 계정을 복구할 수 없습니다.</strong> 이 시스템은 비밀번호 복구 기능이 없는 로컬 시스템입니다. 기억하기 쉬운 비밀번호를 선택해주세요!
                 </p>
               </div>
             </div>
@@ -150,7 +153,7 @@ export default function LoginForm() {
 
           <div className="text-center">
             <p className="text-xs text-gray-500">
-              New users: Your account will be created automatically. Returning users: Just enter your credentials!
+              신규 사용자: 계정이 자동으로 생성됩니다. 기존 사용자: 로그인 정보를 입력하세요!
             </p>
           </div>
         </form>

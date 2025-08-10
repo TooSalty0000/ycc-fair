@@ -156,7 +156,7 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
         <Camera className="h-12 w-12 text-gray-400 mb-4" />
         <p className="text-gray-600 text-center px-4 mb-4">{error}</p>
         
-        <div className="space-y-2">
+        <div className="space-y-2 flex flex-col items-center justify-center">
           <button
             onClick={startCamera}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 block"

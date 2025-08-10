@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 import path from 'path';
+import bcrypt from 'bcryptjs';
 
 let db: Database | null = null;
 
@@ -35,8 +36,7 @@ async function initializeDatabase() {
       is_active BOOLEAN DEFAULT FALSE,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       activated_at DATETIME NULL,
-      completed_at DATETIME NULL,
-      required_completions INTEGER DEFAULT 5
+      completed_at DATETIME NULL
     );
 
     -- User submissions table
@@ -65,6 +65,13 @@ async function initializeDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       confirmed_at DATETIME NULL,
       FOREIGN KEY (user_id) REFERENCES users (id)
+    );
+
+    -- Settings table
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     -- Indexes for better performance
@@ -96,14 +103,14 @@ async function initializeDatabase() {
 
 async function insertInitialWords() {
   const initialWords = [
-    'apple', 'book', 'chair', 'dog', 'elephant', 'flower', 'guitar', 'house',
-    'ice', 'jacket', 'key', 'lamp', 'mountain', 'notebook', 'ocean', 'pencil',
-    'queen', 'rainbow', 'sun', 'tree', 'umbrella', 'violin', 'water', 'xray',
-    'yacht', 'zebra', 'backpack', 'camera', 'diamond', 'eagle', 'fire', 'glass',
-    'helmet', 'island', 'jungle', 'kite', 'lighthouse', 'mirror', 'nest', 'owl',
-    'piano', 'quilt', 'rocket', 'star', 'telescope', 'unicorn', 'valley', 'whale',
-    'xenon', 'yarn', 'zoo', 'airplane', 'bridge', 'castle', 'door', 'engine',
-    'forest', 'garden', 'horizon', 'igloo', 'jewel', 'kitchen', 'library', 'maze'
+    '사과', '책', '의자', '강아지', '코끼리', '꽃', '기타', '집',
+    '얼음', '재킷', '열쇠', '램프', '산', '노트북', '바다', '연필',
+    '여왕', '무지개', '해', '나무', '우산', '바이올린', '물', '엑스레이',
+    '요트', '얼룩말', '백팩', '카메라', '다이아몬드', '독수리', '불', '유리',
+    '헬멧', '섬', '정글', '연', '등대', '거울', '둥지', '올빼미',
+    '피아노', '퀼트', '로켓', '별', '망원경', '유니콘', '계곡', '고래',
+    '크세논', '실', '동물원', '비행기', '다리', '성', '문', '엔진',
+    '숲', '정원', '수평선', '이글루', '보석', '주방', '도서관', '미로'
   ];
 
   const stmt = await db.prepare('INSERT INTO words (word) VALUES (?)');
@@ -184,7 +191,6 @@ async function createAdminUser() {
   const existingAdmin = await db.get('SELECT * FROM users WHERE username = ?', 'admin');
   
   if (!existingAdmin) {
-    const bcrypt = require('bcryptjs');
     const adminPasswordHash = await bcrypt.hash('YCCAdmin', 12);
     
     await db.run(`
@@ -241,8 +247,9 @@ export async function getNextWord() {
 export async function checkWordCompletion() {
   // Database connection handled by getCurrentWord() and getNextWord()
   const currentWord = await getCurrentWord();
+  const requiredCompletions = await getDefaultRequiredCompletions();
   
-  if (currentWord && currentWord.current_completions >= currentWord.required_completions) {
+  if (currentWord && currentWord.current_completions >= requiredCompletions) {
     return await getNextWord();
   }
   
@@ -268,6 +275,11 @@ export async function getUserByUsername(username: string) {
 export async function getUserById(id: number) {
   const db = await getDatabase();
   return await db.get('SELECT * FROM users WHERE id = ?', id);
+}
+
+export async function updateUserPassword(userId: number, newPasswordHash: string) {
+  const db = await getDatabase();
+  await db.run('UPDATE users SET password_hash = ? WHERE id = ?', newPasswordHash, userId);
 }
 
 // Submission operations
@@ -344,13 +356,26 @@ export async function getLeaderboard(limit: number = 10) {
   return await database.all(`
     SELECT 
       u.username,
-      COALESCE(SUM(s.points), 0) as total_points,
-      COALESCE(COUNT(c.id), 0) as total_tokens,
-      COUNT(DISTINCT s.word_id) as words_completed
+      COALESCE(points_data.total_points, 0) as total_points,
+      COALESCE(coupon_data.total_tokens, 0) as total_tokens,
+      COALESCE(points_data.words_completed, 0) as words_completed
     FROM users u
-    LEFT JOIN submissions s ON u.id = s.user_id
-    LEFT JOIN coupons c ON u.id = c.user_id
-    GROUP BY u.id, u.username
+    LEFT JOIN (
+      SELECT 
+        user_id, 
+        SUM(points) as total_points,
+        COUNT(DISTINCT word_id) as words_completed
+      FROM submissions 
+      GROUP BY user_id
+    ) points_data ON u.id = points_data.user_id
+    LEFT JOIN (
+      SELECT 
+        user_id,
+        COUNT(*) as total_tokens
+      FROM coupons 
+      GROUP BY user_id
+    ) coupon_data ON u.id = coupon_data.user_id
+    WHERE u.is_admin = FALSE
     ORDER BY total_points DESC, total_tokens DESC, words_completed DESC
     LIMIT ?
   `, limit);
@@ -361,15 +386,29 @@ export async function getUserStats(userId: number) {
   return await database.get(`
     SELECT 
       u.username,
-      COALESCE(SUM(s.points), 0) as total_points,
-      COALESCE(COUNT(c.id), 0) as total_tokens,
-      COUNT(DISTINCT s.word_id) as words_completed
+      COALESCE(points_data.total_points, 0) as total_points,
+      COALESCE(coupon_data.total_tokens, 0) as total_tokens,
+      COALESCE(points_data.words_completed, 0) as words_completed
     FROM users u
-    LEFT JOIN submissions s ON u.id = s.user_id
-    LEFT JOIN coupons c ON u.id = c.user_id
+    LEFT JOIN (
+      SELECT 
+        user_id, 
+        SUM(points) as total_points,
+        COUNT(DISTINCT word_id) as words_completed
+      FROM submissions 
+      WHERE user_id = ?
+      GROUP BY user_id
+    ) points_data ON u.id = points_data.user_id
+    LEFT JOIN (
+      SELECT 
+        user_id,
+        COUNT(*) as total_tokens
+      FROM coupons 
+      WHERE user_id = ?
+      GROUP BY user_id
+    ) coupon_data ON u.id = coupon_data.user_id
     WHERE u.id = ?
-    GROUP BY u.id, u.username
-  `, userId);
+  `, userId, userId, userId);
 }
 
 // Admin-specific functions
@@ -382,13 +421,25 @@ export async function getAllUsersStats() {
       u.is_admin,
       u.created_at,
       u.last_active,
-      COALESCE(SUM(s.points), 0) as total_points,
-      COALESCE(COUNT(c.id), 0) as total_coupons,
-      COUNT(DISTINCT s.word_id) as words_completed
+      COALESCE(points_data.total_points, 0) as total_points,
+      COALESCE(coupon_data.total_coupons, 0) as total_coupons,
+      COALESCE(points_data.words_completed, 0) as words_completed
     FROM users u
-    LEFT JOIN submissions s ON u.id = s.user_id
-    LEFT JOIN coupons c ON u.id = c.user_id
-    GROUP BY u.id, u.username, u.is_admin, u.created_at, u.last_active
+    LEFT JOIN (
+      SELECT 
+        user_id, 
+        SUM(points) as total_points,
+        COUNT(DISTINCT word_id) as words_completed
+      FROM submissions 
+      GROUP BY user_id
+    ) points_data ON u.id = points_data.user_id
+    LEFT JOIN (
+      SELECT 
+        user_id,
+        COUNT(*) as total_coupons
+      FROM coupons 
+      GROUP BY user_id
+    ) coupon_data ON u.id = coupon_data.user_id
     ORDER BY total_points DESC
   `);
 }
@@ -413,20 +464,15 @@ export async function getAllCouponsForAdmin() {
 export async function getAllWords() {
   const database = await getDatabase();
   return await database.all(`
-    SELECT id, word, is_active, created_at, activated_at, completed_at, required_completions
-    FROM words
-    ORDER BY id ASC
+    SELECT w.id, w.word, w.is_active, w.created_at, w.activated_at, w.completed_at,
+           COUNT(s.id) as current_completions
+    FROM words w
+    LEFT JOIN submissions s ON w.id = s.word_id
+    GROUP BY w.id, w.word, w.is_active, w.created_at, w.activated_at, w.completed_at
+    ORDER BY w.id ASC
   `);
 }
 
-export async function updateWordRequiredCompletions(wordId: number, requiredCompletions: number) {
-  const database = await getDatabase();
-  await database.run(`
-    UPDATE words 
-    SET required_completions = ?
-    WHERE id = ?
-  `, requiredCompletions, wordId);
-}
 
 export async function setActiveWord(wordId: number) {
   const database = await getDatabase();
@@ -440,6 +486,12 @@ export async function setActiveWord(wordId: number) {
     SET is_active = TRUE, activated_at = CURRENT_TIMESTAMP 
     WHERE id = ?
   `, wordId);
+}
+
+export async function getDefaultRequiredCompletions(): Promise<number> {
+  const database = await getDatabase();
+  const setting = await database.get('SELECT value FROM settings WHERE key = ?', 'default_required_completions') as { value: string } | undefined;
+  return setting ? parseInt(setting.value) : 5;
 }
 
 export async function addNewWord(word: string) {
@@ -480,7 +532,6 @@ export async function deleteUser(userId: number) {
 }
 
 export async function resetUserPassword(userId: number, newPassword: string) {
-  const bcrypt = require('bcryptjs');
   const database = await getDatabase();
   const passwordHash = await bcrypt.hash(newPassword, 12);
   

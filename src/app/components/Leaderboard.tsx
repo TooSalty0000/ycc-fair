@@ -35,17 +35,17 @@ export default function Leaderboard() {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Leaderboard</h2>
+        <h2 className="text-xl font-bold text-gray-900">순위표</h2>
         <div className="flex items-center text-sm text-gray-500">
           <Star className="h-4 w-4 mr-1" />
-          Live Rankings
+          실시간 순위
         </div>
       </div>
 
       {leaderboard.length === 0 ? (
         <div className="text-center py-8">
           <Trophy className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">No players yet. Be the first to score!</p>
+          <p className="text-gray-500">아직 플레이어가 없습니다. 첫 번째 점수를 얻어보세요!</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -85,7 +85,7 @@ export default function Leaderboard() {
                         {entry.username}
                         {isCurrentUser && (
                           <span className="ml-2 text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
-                            You
+                            본인
                           </span>
                         )}
                       </p>
@@ -94,11 +94,7 @@ export default function Leaderboard() {
                     <div className="flex items-center space-x-4 text-sm text-gray-600">
                       <span className="flex items-center">
                         <Trophy className="h-3 w-3 mr-1" />
-                        {entry.points} points
-                      </span>
-                      <span className="flex items-center">
-                        <Gift className="h-3 w-3 mr-1" />
-                        {entry.tokens} tokens
+                        {entry.points} 점
                       </span>
                     </div>
                   </div>
@@ -112,7 +108,7 @@ export default function Leaderboard() {
                         ? 'bg-gray-100 text-gray-800'
                         : 'bg-amber-100 text-amber-800'
                   }`}>
-                    {rank === 1 ? '1st Place' : rank === 2 ? '2nd Place' : '3rd Place'}
+                    {rank === 1 ? '1위' : rank === 2 ? '2위' : '3위'}
                   </div>
                 )}
               </div>
@@ -132,10 +128,9 @@ export default function Leaderboard() {
                 </span>
               </div>
               <div>
-                <p className="font-medium text-indigo-900">{user.username} (You)</p>
+                <p className="font-medium text-indigo-900">{user.username} (본인)</p>
                 <div className="flex items-center space-x-3 text-xs text-indigo-700">
-                  <span>{user.points} points</span>
-                  <span>{user.tokens} tokens</span>
+                  <span>{user.points} 점</span>
                 </div>
               </div>
             </div>

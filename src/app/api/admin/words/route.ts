@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '../../../lib/auth-utils';
-import { getAllWords, addNewWord, removeWord, setActiveWord, updateWordRequiredCompletions } from '../../../lib/database';
+import { getAllWords, addNewWord, removeWord, setActiveWord } from '../../../lib/database';
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    const { action, wordId, word, requiredCompletions } = await request.json();
+    const { action, wordId, word } = await request.json();
 
     switch (action) {
       case 'add':
@@ -49,13 +49,6 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Word ID is required' }, { status: 400 });
         }
         await setActiveWord(wordId);
-        return NextResponse.json({ success: true });
-
-      case 'updateRequiredCompletions':
-        if (!wordId || !requiredCompletions) {
-          return NextResponse.json({ error: 'Word ID and required completions are required' }, { status: 400 });
-        }
-        await updateWordRequiredCompletions(wordId, requiredCompletions);
         return NextResponse.json({ success: true });
 
       default:
