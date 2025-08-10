@@ -12,7 +12,9 @@ import {
   Shield,
   Trophy,
   LogOut,
-  Key
+  Key,
+  Menu,
+  X
 } from 'lucide-react';
 
 interface UserStat {
@@ -60,6 +62,7 @@ export default function AdminPage({ onLogout }: { onLogout?: () => void }) {
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [couponDropRate, setCouponDropRate] = useState(30);
   const [defaultRequiredCompletions, setDefaultRequiredCompletions] = useState(5);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -298,7 +301,8 @@ export default function AdminPage({ onLogout }: { onLogout?: () => void }) {
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          {/* Desktop Header */}
+          <div className="hidden lg:flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <img src="/ycc_logo.png" alt="YCC 로고" className="h-12 w-12 rounded-lg shadow-sm" />
               <div>
@@ -331,6 +335,55 @@ export default function AdminPage({ onLogout }: { onLogout?: () => void }) {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Mobile Header */}
+          <div className="lg:hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <img src="/ycc_logo.png" alt="YCC 로고" className="h-10 w-10 rounded-lg shadow-sm" />
+                <div>
+                  <h2 className="text-base font-bold text-blue-600">YCC</h2>
+                  <p className="text-xs text-blue-500">루키즈</p>
+                </div>
+              </div>
+              
+              <div className="text-center flex-1 mx-4">
+                <h1 className="text-lg font-bold text-purple-600 flex items-center justify-center">
+                  <Shield className="h-5 w-5 mr-1" />
+                  관리자
+                </h1>
+              </div>
+              
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="flex items-center justify-center w-10 h-10 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+              >
+                {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
+            </div>
+
+            {/* Mobile Menu Dropdown */}
+            {showMobileMenu && (
+              <div className="mt-4 bg-gray-50 rounded-lg p-3 space-y-2">
+                <button
+                  onClick={() => { setShowPasswordChange(!showPasswordChange); setShowMobileMenu(false); }}
+                  className="w-full flex items-center px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                >
+                  <Key className="h-4 w-4 mr-2" />
+                  비밀번호 변경
+                </button>
+                {onLogout && (
+                  <button
+                    onClick={() => { onLogout(); setShowMobileMenu(false); }}
+                    className="w-full flex items-center px-3 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    로그아웃
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -441,8 +494,8 @@ export default function AdminPage({ onLogout }: { onLogout?: () => void }) {
                   <div>
                     <h3 className="text-lg font-bold text-green-700">현재 활성 단어: &quot;{activeWord.word}&quot;</h3>
                     <p className="text-sm text-gray-600">
-                      진행상황: {activeWord.current_completions} / {defaultRequiredCompletions} 완료 
-                      ({Math.round((activeWord.current_completions / defaultRequiredCompletions) * 100)}%)
+                      완료 현황: {activeWord.current_completions}명이 성공 
+                      (다음 단어까지 {defaultRequiredCompletions - activeWord.current_completions}명 남음)
                     </p>
                   </div>
                 </div>
@@ -670,7 +723,7 @@ export default function AdminPage({ onLogout }: { onLogout?: () => void }) {
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">단어</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">진행상황</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">완료 현황</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">생성일</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
                       </tr>

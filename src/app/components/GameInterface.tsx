@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Trophy, Star, Gift, LogOut, Users, Shield, Key, Share2 } from 'lucide-react';
+import { Trophy, Star, Gift, LogOut, Users, Shield, Key, Share2, Menu, X } from 'lucide-react';
 import { useGame } from '../contexts/GameContext';
 import CameraCapture from './CameraCapture';
 import AITestPanel from './AITestPanel';
@@ -21,6 +21,7 @@ export default function GameInterface() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const handleShare = async () => {
     const shareData = {
@@ -127,7 +128,8 @@ export default function GameInterface() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          {/* Desktop Header */}
+          <div className="hidden lg:flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <img src="/ycc_logo.png" alt="YCC 로고" className="h-12 w-12 rounded-lg shadow-sm" />
               <div>
@@ -167,16 +169,6 @@ export default function GameInterface() {
                 </button>
               )}
               
-              {/* {process.env.NODE_ENV === 'development' && (
-                <button
-                  onClick={() => setShowAITest(true)}
-                  className="flex items-center px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
-                >
-                  <Brain className="h-4 w-4 mr-1" />
-                  AI 테스트
-                </button>
-              )} */}
-              
               <button
                 onClick={() => setShowPasswordChange(!showPasswordChange)}
                 className="flex items-center px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
@@ -193,6 +185,78 @@ export default function GameInterface() {
                 로그아웃
               </button>
             </div>
+          </div>
+
+          {/* Mobile Header */}
+          <div className="lg:hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <img src="/ycc_logo.png" alt="YCC 로고" className="h-10 w-10 rounded-lg shadow-sm" />
+                <div>
+                  <h2 className="text-base font-bold text-indigo-600">YCC</h2>
+                  <p className="text-xs text-indigo-500">루키즈</p>
+                </div>
+              </div>
+              
+              <div className="text-center flex-1 mx-4">
+                <h1 className="text-lg font-bold text-indigo-600">동아리 박람회 보물찾기</h1>
+                <p className="text-xs text-gray-600">{user.username}님</p>
+              </div>
+              
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="flex items-center justify-center w-10 h-10 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+              >
+                {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
+            </div>
+
+            {/* Mobile Menu Dropdown */}
+            {showMobileMenu && (
+              <div className="mt-4 bg-gray-50 rounded-lg p-3 space-y-2">
+                <button
+                  onClick={() => { setShowLeaderboard(true); setShowMobileMenu(false); }}
+                  className="w-full flex items-center px-3 py-2 text-sm bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  순위표
+                </button>
+                
+                <button
+                  onClick={() => { setShowCoupons(true); setShowMobileMenu(false); }}
+                  className="w-full flex items-center px-3 py-2 text-sm bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors"
+                >
+                  <Gift className="h-4 w-4 mr-2" />
+                  내 쿠폰
+                </button>
+                
+                {user.isAdmin && (
+                  <button
+                    onClick={() => { setShowAdmin(true); setShowMobileMenu(false); }}
+                    className="w-full flex items-center px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    관리자 패널
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => { setShowPasswordChange(!showPasswordChange); setShowMobileMenu(false); }}
+                  className="w-full flex items-center px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                >
+                  <Key className="h-4 w-4 mr-2" />
+                  비밀번호 변경
+                </button>
+                
+                <button
+                  onClick={() => { logout(); setShowMobileMenu(false); }}
+                  className="w-full flex items-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  로그아웃
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -223,9 +287,9 @@ export default function GameInterface() {
           <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">진행상황</p>
+                <p className="text-sm font-medium text-gray-600">단어 참여도</p>
                 <p className="text-sm text-gray-500">
-                  {gameState.totalSubmissions}/{gameState.requiredSubmissions}
+                  {gameState.totalSubmissions}명 성공
                 </p>
               </div>
               <Star className="h-8 w-8 text-purple-500" />
@@ -302,7 +366,7 @@ export default function GameInterface() {
             </p>
             <div className="mt-4 bg-gray-50 rounded-lg p-3">
               <p className="text-xs text-gray-500">
-                진행상황: {gameState.totalSubmissions}/{gameState.requiredSubmissions} 성공적인 제출
+                현재 단어: {gameState.totalSubmissions}명이 이미 찾았습니다
               </p>
               <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                 <div 
@@ -379,7 +443,7 @@ export default function GameInterface() {
                     className="flex items-center px-4 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
                   >
                     <Share2 className="h-4 w-4 mr-2" />
-                    친구들 초대하기
+                    공유
                   </button>
                   
                   <button

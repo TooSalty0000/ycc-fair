@@ -161,7 +161,7 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
             onClick={startCamera}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 block"
           >
-            Try Again
+            재시도
           </button>
           
           <div className="text-center">
@@ -185,9 +185,9 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
                   }
                 }}
               />
-              Take Photo (Fallback)
+              사진 쵤영
             </label>
-            <p className="text-xs text-gray-500 mt-1">Use device camera app</p>
+            <p className="text-xs text-gray-500 mt-1">사용자 카메라 사용</p>
           </div>
         </div>
       </div>
@@ -201,7 +201,7 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
           <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
             <div className="text-white text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2" />
-              <p>Starting camera...</p>
+              <p>카메라 시작중...</p>
             </div>
           </div>
         )}

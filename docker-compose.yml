@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  ycc-fair-app:
+    build: .
+    container_name: ycc-fair-app
+    ports:
+      - "16181:3000"
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=production
+    volumes:
+      # Mount database file to persist data
+      - ./database.sqlite:/app/database.sqlite
+      # Mount public directory for logo and assets
+      - ./public:/app/public
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      timeout: 10s
+      interval: 30s
+      retries: 3
+      start_period: 40s
