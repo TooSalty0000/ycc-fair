@@ -198,7 +198,10 @@ export default function CameraCapture({ onCapture, isProcessing }: CameraCapture
         
         <div className="space-y-2 flex flex-col items-center justify-center">
           <button
-            onClick={startCamera}
+            onClick={(e) => {
+              e.preventDefault();
+              startCamera();
+            }}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 block"
           >
             재시도
