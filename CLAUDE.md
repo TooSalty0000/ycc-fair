@@ -21,6 +21,10 @@ This is a **YCC Fair Photo Scavenger Hunt** web application - a real-time group 
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint (must pass before commits)
 
+### Docker Commands
+- `docker-compose up --build` - Build and run production container on port 16181
+- `docker-compose down` - Stop and remove containers
+
 ## Architecture & Key Components
 
 ### App Structure
@@ -31,9 +35,9 @@ This is a **YCC Fair Photo Scavenger Hunt** web application - a real-time group 
 - **Leaderboard** (`components/Leaderboard.tsx`) - Real-time player rankings
 
 ### State Management
-- React Context API for global game state
-- Real-time updates via Socket.IO connection to Python backend
-- Firebase Firestore for persistent data (users, leaderboard, sessions)
+- React Context API for global game state (`contexts/GameContext.tsx`)
+- No external real-time services - purely Next.js API routes
+- SQLite database for all persistent data (no Firebase)
 
 ### External Integrations
 - **SQLite Database**: Local storage for users, words, submissions, and leaderboard data
@@ -66,6 +70,9 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 - **No password recovery** - Users cannot recover forgotten passwords
 - **Rate limiting** - Consider Gemini API quotas for production use
 - **Self-contained** - No external services except Gemini AI required
+- **Korean Localization** - All user-facing error/success messages are in Korean
+- **Docker Production** - Uses Node.js 20 Alpine with better-sqlite3 support
+- **Database Path** - Production uses `/app/data/database.sqlite`, development uses `./database.sqlite`
 
 ## Game Flow Logic
 
@@ -97,7 +104,8 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 
 **Next.js API Routes:**
 - `POST /api/auth/login` - User authentication
-- `POST /api/auth/register` - Account creation
+- `POST /api/auth/register` - Account creation  
+- `POST /api/auth/change-password` - Change user password (requires current password)
 - `GET /api/game/current-word` - Get active word and progress
 - `POST /api/game/submit` - Submit photo for AI verification
 - `GET /api/game/leaderboard` - Get top players
@@ -108,6 +116,7 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 - `words` - Scavenger hunt words with progression tracking
 - `submissions` - Photo submissions with points (prevents duplicates per user/word)
 - `tokens` - Bonus coupons earned by users
+- `settings` - Configuration values (e.g., coupon drop rates)
 
 ## Development Features
 

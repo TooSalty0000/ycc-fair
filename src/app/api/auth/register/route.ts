@@ -30,34 +30,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user in database
-    let user = await getUserByUsername(username);
-    let isNewUser = false;
-
-    if (!user) {
-      // User doesn't exist, create new account
-      const passwordHash = await bcrypt.hash(password, 12);
-      const userId = await createUser(username, passwordHash);
-      
-      user = {
-        id: userId,
-        username,
-        password_hash: passwordHash,
-        created_at: new Date().toISOString(),
-        last_active: new Date().toISOString()
-      };
-      
-      isNewUser = true;
-    } else {
-      // User exists, verify password
-      const isValidPassword = await bcrypt.compare(password, user.password_hash);
-      if (!isValidPassword) {
-        return NextResponse.json(
-          { error: '기존 사용자명에 대한 잘못된 비밀번호입니다' },
-          { status: 401 }
-        );
-      }
+    // Check if user already exists
+    const existingUser = await getUserByUsername(username);
+    if (existingUser) {
+      return NextResponse.json(
+        { error: '이미 존재하는 사용자명입니다' },
+        { status: 409 }
+      );
     }
+
+    // Create new user
+    const passwordHash = await bcrypt.hash(password, 12);
+    const userId = await createUser(username, passwordHash);
+    
+    const user = {
+      id: userId,
+      username,
+      password_hash: passwordHash,
+      created_at: new Date().toISOString(),
+      last_active: new Date().toISOString(),
+      is_admin: false
+    };
 
     // Create JWT token
     const token = jwt.sign(
@@ -76,15 +69,14 @@ export async function POST(request: NextRequest) {
       user: {
         id: user.id,
         username: user.username,
-        points: 0, // Will be updated from game stats
+        points: 0,
         is_admin: user.is_admin || false,
-        created_at: user.created_at,
-        isNewUser
+        created_at: user.created_at
       }
     });
 
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Registration error:', error);
     return NextResponse.json(
       { error: '내부 서버 오류' },
       { status: 500 }

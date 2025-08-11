@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (error instanceof Error && error.message === 'Authentication required') {
       return NextResponse.json(
-        { error: 'Authentication required' },
+        { error: '인증이 필요합니다' },
         { status: 401 }
       );
     }

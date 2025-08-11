@@ -32,7 +32,7 @@ export const verifyImageWithGemini = async (
     // Check if API key is available
     if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
       console.error('Gemini API key not found');
-      throw new Error('AI verification service not configured');
+      throw new Error('AI 검증 서비스가 설정되지 않았습니다');
     }
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -111,7 +111,7 @@ Analyze this image:`;
       return {
         success: false,
         confidence: 0,
-        message: 'Error parsing AI response. Please try again.',
+        message: 'AI 응답 처리 중 오류가 발생했습니다. 다시 시도해주세요.',
         isScreen: false,
         explanation: 'Unable to process image verification response.'
       };
@@ -127,11 +127,11 @@ Analyze this image:`;
 
     let message = '';
     if (isScreen) {
-      message = 'Photo appears to be taken of a screen. Please take a photo of the real object!';
+      message = '화면을 촬영한 사진으로 보입니다. 실제 물체를 촬영해주세요!';
     } else if (!keywordMatch) {
-      message = `This image doesn't appear to contain "${keyword}". Try again!`;
+      message = `이 사진에 "${keyword}"가 포함되지 않은 것 같습니다. 다시 시도해보세요!`;
     } else {
-      message = `Great! Found "${keyword}" in your photo!`;
+      message = `사진에서 "${keyword}"를 찾았습니다!`;
     }
 
     return {
@@ -147,7 +147,7 @@ Analyze this image:`;
     return {
       success: false,
       confidence: 0,
-      message: 'AI verification service is temporarily unavailable. Please try again.',
+      message: 'AI 검증 서비스가 일시적으로 사용할 수 없습니다. 다시 시도해주세요.',
       isScreen: false,
       explanation: 'Service error occurred during verification.'
     };
@@ -171,8 +171,8 @@ export const verifyImageFallback = async (
     success,
     confidence,
     message: success 
-      ? `Great! Found "${keyword}" in your photo!` 
-      : `This image doesn't appear to contain "${keyword}". Try again!`,
+      ? `훌륭해요! 사진에서 "${keyword}"를 찾았습니다!` 
+      : `이 사진에 "${keyword}"가 포함되지 않은 것 같습니다. 다시 시도해보세요!`,
     isScreen: false,
     explanation: 'Fallback verification used (for testing purposes).'
   };

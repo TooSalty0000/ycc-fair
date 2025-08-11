@@ -135,7 +135,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       
       return { success: true };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred during login';
+      const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다';
       return { success: false, error: errorMessage };
     }
   };
@@ -203,7 +203,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       return {
         success: false,
         points: 0,
-        message: 'Failed to process photo. Please try again.'
+        message: '사진 처리에 실패했습니다. 다시 시도해주세요.'
       };
     }
   };
@@ -251,7 +251,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 export const useGame = () => {
   const context = useContext(GameContext);
   if (!context) {
-    throw new Error('useGame must be used within a GameProvider');
+    throw new Error('useGame은 GameProvider 내에서 사용되어야 합니다');
   }
   return context;
 };
