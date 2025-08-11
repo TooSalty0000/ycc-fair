@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '../../../lib/auth-utils';
-import { getCurrentWord, createSubmission, addCoupon, checkWordCompletion, getDatabase } from '../../../lib/database';
+import { getCurrentWord, createSubmission, addCoupon, checkWordCompletion, getDatabase, hasUserSubmittedForWord } from '../../../lib/database';
 import { verifyImageWithGemini } from '../../../lib/gemini';
 
 export async function POST(request: NextRequest) {
@@ -32,6 +32,17 @@ export async function POST(request: NextRequest) {
         { error: '활성 단어를 찾을 수 없습니다' },
         { status: 404 }
       );
+    }
+
+    // Check if user has already submitted for this word
+    const hasSubmitted = await hasUserSubmittedForWord(authUser.userId, currentWord.id);
+    if (hasSubmitted) {
+      return NextResponse.json({
+        success: false,
+        points: 0,
+        message: `이미 "${currentWord.word}"를 찾으셨습니다! 현재 단어를 시도해보세요.`,
+        alreadySubmitted: true
+      });
     }
 
     // Verify image with Gemini AI
@@ -100,16 +111,11 @@ export async function POST(request: NextRequest) {
       });
 
     } catch (error: unknown) {
-      const submitError = error as { message?: string };
-      if (submitError.message === 'Already submitted for this word') {
-        return NextResponse.json({
-          success: false,
-          points: 0,
-          message: `이미 "${currentWord.word}"를 찾으셨습니다! 현재 단어를 시도해보세요.`,
-          alreadySubmitted: true
-        });
-      }
-      throw error;
+      console.error('Submission creation error:', error);
+      return NextResponse.json(
+        { error: '제출 처리 중 오류가 발생했습니다. 다시 시도해주세요.' },
+        { status: 500 }
+      );
     }
 
   } catch (error) {

@@ -107,14 +107,14 @@ export function CameraCapture({ onCapture, onClose, targetWord }: CameraCaptureP
                 <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                 <canvas ref={canvasRef} className="hidden" />
 
-                {/* Camera Overlay */}
+                {/* Camera Overlay
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="border-2 border-white border-dashed rounded-lg w-48 h-48 flex items-center justify-center">
                     <p className="text-white text-sm text-center bg-black bg-opacity-50 px-2 py-1 rounded">
                       {targetWord}를<br />이 영역에 맞춰주세요
                     </p>
                   </div>
-                </div>
+                </div> */}
               </>
             ) : (
               <img src={capturedPhoto || "/placeholder.svg"} alt="Captured" className="w-full h-full object-cover" />

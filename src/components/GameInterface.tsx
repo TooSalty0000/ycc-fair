@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { Camera, Zap, Target, Clock, Gift, Trophy, Users, Sparkles } from "lucide-react"
+import { Camera, Zap, Target, Clock, Gift, Trophy, Users, Sparkles, Share2, CheckCircle2, Copy } from "lucide-react"
 import { CameraCapture } from "@/components/CameraCapture"
 
 interface GameInterfaceProps {
@@ -46,14 +46,17 @@ export function GameInterface({ user }: GameInterfaceProps) {
   const [recentSubmission, setRecentSubmission] = useState<GameResult | null>(null)
   const [userTokens, setUserTokens] = useState(0)
   const [hasSubmittedForCurrentWord, setHasSubmittedForCurrentWord] = useState(false)
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null)
 
   // Load game data on mount and periodically
   useEffect(() => {
     loadGameData()
     loadUserStats()
+    loadSubmissionStatus()
     const interval = setInterval(() => {
       loadGameData()
       loadUserStats()
+      loadSubmissionStatus()
     }, 10000) // Refresh every 10 seconds
     return () => clearInterval(interval)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -81,6 +84,22 @@ export function GameInterface({ user }: GameInterfaceProps) {
     }
   }
 
+  const loadSubmissionStatus = async () => {
+    try {
+      const response = await fetch("/api/game/submission-status", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        },
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setHasSubmittedForCurrentWord(Boolean(data.hasSubmitted))
+      }
+    } catch (error) {
+      console.error("Failed to load submission status:", error)
+    }
+  }
+
   const loadUserStats = async () => {
     try {
       const response = await fetch("/api/game/user-stats", {
@@ -99,6 +118,35 @@ export function GameInterface({ user }: GameInterfaceProps) {
       }
     } catch (error) {
       console.error("Failed to load user stats:", error)
+    }
+  }
+
+  const handleShare = async () => {
+    const shareText = `저는 이미 오늘의 미션 "${gameState.currentKeyword}"을(를) 완료했어요! YCC 포토 헌트에서 함께 도전해요!`
+    const shareData = {
+      title: "YCC 포토 헌트",
+      text: shareText,
+      url: typeof window !== "undefined" ? window.location.href : undefined,
+    }
+
+    try {
+      if (navigator.share && typeof navigator.share === "function") {
+        await navigator.share(shareData as ShareData)
+        setShareFeedback("공유되었습니다!")
+      } else {
+        await navigator.clipboard.writeText(`${shareText} ${shareData.url ?? ""}`.trim())
+        setShareFeedback("클립보드에 복사했어요!")
+      }
+      setTimeout(() => setShareFeedback(null), 3000)
+    } catch (err) {
+      try {
+        await navigator.clipboard.writeText(`${shareText} ${shareData.url ?? ""}`.trim())
+        setShareFeedback("클립보드에 복사했어요!")
+        setTimeout(() => setShareFeedback(null), 3000)
+      } catch {
+        setShareFeedback("공유에 실패했어요. 다시 시도해주세요.")
+        setTimeout(() => setShareFeedback(null), 3000)
+      }
     }
   }
 
@@ -232,6 +280,37 @@ export function GameInterface({ user }: GameInterfaceProps) {
                   &quot;{gameState.currentKeyword}&quot;에 대한 점수를 이미 획득했습니다
                 </p>
               </div>
+              
+              {/* Share Screen */}
+              <Card className="bg-indigo-50 border-indigo-200">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-center space-x-2">
+                    <Share2 className="h-5 w-5 text-indigo-600" />
+                    <span className="font-medium text-indigo-800">친구들과 공유하기</span>
+                  </div>
+                  <p className="text-xs text-indigo-700">
+                    오늘의 미션을 완료했어요! 다른 사람들도 함께 참여할 수 있도록 공유해보세요.
+                  </p>
+                  <div className="flex gap-2 justify-center">
+                    <Button onClick={handleShare} className="bg-indigo-600 hover:bg-indigo-700">
+                      <Share2 className="h-4 w-4 mr-1" /> 공유하기
+                    </Button>
+                    <Button variant="secondary" onClick={async () => {
+                      const text = `저는 이미 오늘의 미션 "${gameState.currentKeyword}"을(를) 완료했어요! YCC 포토 헌트에서 함께 도전해요! ${typeof window !== "undefined" ? window.location.href : ""}`.trim()
+                      await navigator.clipboard.writeText(text)
+                      setShareFeedback("클립보드에 복사했어요!")
+                      setTimeout(() => setShareFeedback(null), 3000)
+                    }}>
+                      <Copy className="h-4 w-4 mr-1" /> 복사하기
+                    </Button>
+                  </div>
+                  {shareFeedback && (
+                    <div className="flex items-center justify-center text-xs text-green-700">
+                      <CheckCircle2 className="h-4 w-4 mr-1" /> {shareFeedback}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
               
               <Card className="bg-yellow-50 border-yellow-200">
                 <CardContent className="p-4">
