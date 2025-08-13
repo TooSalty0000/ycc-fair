@@ -115,13 +115,13 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg font-bold">
-                {currentPage === "game" && "YCC 포토 헌트"}
+                {currentPage === "game" && "YCC 퀘스트 스냅"}
                 {currentPage === "leaderboard" && "실시간 순위"}
                 {currentPage === "profile" && "내 프로필"}
                 {currentPage === "coupons" && "내 쿠폰"}
               </h1>
               <p className="text-indigo-100 text-sm">
-                {currentPage === "game" && "실시간 사진 찾기 게임"}
+                {currentPage === "game" && "실시간 사진 보물찾기 게임"}
                 {currentPage === "leaderboard" && "참가자들의 순위를 확인하세요"}
                 {currentPage === "profile" && "내 정보 및 설정"}
                 {currentPage === "coupons" && "획득한 쿠폰을 관리하세요"}

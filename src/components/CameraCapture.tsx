@@ -66,11 +66,9 @@ export function CameraCapture({ onCapture, onClose, targetWord }: CameraCaptureP
   const submitPhoto = async () => {
     if (capturedPhoto) {
       setIsLoading(true)
-      // Simulate AI processing delay
-      setTimeout(() => {
-        onCapture(capturedPhoto)
-        setIsLoading(false)
-      }, 2000)
+      onCapture(capturedPhoto)
+      // Close modal immediately after submitting
+      handleClose()
     }
   }
 

@@ -27,6 +27,27 @@ class AuthService {
     };
   }
 
+  private async handleResponse(response: Response) {
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      // Check for session expiration due to database reset
+      if (errorData.error === 'SESSION_EXPIRED_RESET') {
+        console.log('Session expired due to database reset - logging out');
+        this.logout();
+        // Reload the page to force re-login
+        if (typeof window !== 'undefined') {
+          alert('데이터베이스가 재설정되어 자동으로 로그아웃됩니다.');
+          window.location.reload();
+        }
+        throw new Error('Session expired');
+      }
+      
+      throw new Error(errorData.message || 'Request failed');
+    }
+    return response;
+  }
+
 
   async login(username: string, password: string): Promise<User> {
     const response = await fetch('/api/auth/login', {
@@ -60,18 +81,14 @@ class AuthService {
         headers: this.getAuthHeaders()
       });
 
-      if (!response.ok) {
-        // Token might be expired
-        this.logout();
-        return null;
-      }
+      await this.handleResponse(response);
 
       const data = await response.json();
       return {
         id: data.id.toString(),
         username: data.username,
         points: data.points,
-        tokens: data.tokens,
+        coupons: data.coupons,
         isLoggedIn: true,
         isAdmin: data.is_admin || false
       };
@@ -98,7 +115,7 @@ class AuthService {
       id: data.id.toString(),
       username: data.username,
       points: 0, // Will be loaded separately
-      tokens: 0, // Will be loaded separately
+      coupons: 0, // Will be loaded separately
       isLoggedIn: true,
       isAdmin: data.isAdmin || false
     };
@@ -109,10 +126,7 @@ class AuthService {
       headers: this.getAuthHeaders()
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to get current word');
-    }
-
+    await this.handleResponse(response);
     return await response.json();
   }
 
@@ -123,10 +137,7 @@ class AuthService {
       body: JSON.stringify({ imageData })
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to submit photo');
-    }
-
+    await this.handleResponse(response);
     return await response.json();
   }
 
@@ -135,10 +146,7 @@ class AuthService {
       headers: this.getAuthHeaders()
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to get leaderboard');
-    }
-
+    await this.handleResponse(response);
     return await response.json();
   }
 
@@ -147,10 +155,7 @@ class AuthService {
       headers: this.getAuthHeaders()
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to get user stats');
-    }
-
+    await this.handleResponse(response);
     return await response.json();
   }
 
@@ -159,10 +164,7 @@ class AuthService {
       headers: this.getAuthHeaders()
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to get submission status');
-    }
-
+    await this.handleResponse(response);
     return await response.json();
   }
 }

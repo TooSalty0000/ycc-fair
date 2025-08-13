@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
-import { getUserById } from './database';
+import { getUserById, isSessionValid } from './database';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
@@ -8,6 +8,7 @@ export interface AuthUser {
   userId: number;
   username: string;
   isAdmin?: boolean;
+  loginTime?: string;
 }
 
 export async function verifyToken(token: string): Promise<AuthUser | null> {
@@ -34,6 +35,12 @@ export async function requireAuth(request: NextRequest) {
   if (!authUser) {
     throw new Error('Authentication required');
   }
+  
+  // Check if session is still valid after database resets
+  if (authUser.loginTime && !(await isSessionValid(authUser.loginTime))) {
+    throw new Error('Session expired due to database reset');
+  }
+  
   return authUser;
 }
 

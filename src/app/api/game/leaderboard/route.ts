@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
       rank: index + 1,
       username: entry.username,
       points: entry.total_points,
-      tokens: entry.total_tokens,
       wordsCompleted: entry.words_completed
     }));
 

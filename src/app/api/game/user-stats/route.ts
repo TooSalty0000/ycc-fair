@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
         id: authUser.userId,
         username: authUser.username,
         points: 0,
-        tokens: 0,
+        coupons: 0,
         wordsCompleted: 0
       });
     }
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       id: authUser.userId,
       username: userStats.username,
       points: userStats.total_points,
-      tokens: userStats.total_tokens,
+      coupons: userStats.total_coupons,
       wordsCompleted: userStats.words_completed,
       is_admin: authUser.isAdmin || false
     });
@@ -34,6 +34,13 @@ export async function GET(request: NextRequest) {
     if (error instanceof Error && error.message === 'Authentication required') {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
+        { status: 401 }
+      );
+    }
+    
+    if (error instanceof Error && error.message === 'Session expired due to database reset') {
+      return NextResponse.json(
+        { error: 'SESSION_EXPIRED_RESET', message: '데이터베이스가 재설정되어 로그아웃됩니다' },
         { status: 401 }
       );
     }

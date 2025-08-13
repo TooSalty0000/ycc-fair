@@ -41,8 +41,7 @@ async function initializeDatabase() {
       word TEXT UNIQUE NOT NULL,
       is_active BOOLEAN DEFAULT FALSE,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      activated_at DATETIME NULL,
-      completed_at DATETIME NULL
+      activated_at DATETIME NULL
     );
 
     -- User submissions table
@@ -132,10 +131,21 @@ async function ensureActiveWord() {
   const activeWord = await db.get('SELECT * FROM words WHERE is_active = TRUE LIMIT 1');
   
   if (!activeWord) {
-    // Get a random word that hasn't been completed
-    const nextWord = await db.get(`
+    const requiredCompletions = await getDefaultRequiredCompletions();
+    
+    // Try to get a word that hasn't reached completion threshold
+    const availableWord = await db.get(`
+      SELECT w.*, COUNT(s.id) as current_completions
+      FROM words w
+      LEFT JOIN submissions s ON w.id = s.word_id
+      GROUP BY w.id
+      HAVING current_completions < ?
+      ORDER BY RANDOM()
+      LIMIT 1
+    `, requiredCompletions);
+    
+    const nextWord = availableWord || await db.get(`
       SELECT * FROM words 
-      WHERE completed_at IS NULL 
       ORDER BY RANDOM() 
       LIMIT 1
     `);
@@ -228,28 +238,60 @@ export async function getCurrentWord() {
 
 export async function getNextWord() {
   const db = await getDatabase();
+  const requiredCompletions = await getDefaultRequiredCompletions();
   
-  // Mark current word as completed
+  // Deactivate current word
   await db.run(`
     UPDATE words 
-    SET is_active = FALSE, completed_at = CURRENT_TIMESTAMP 
+    SET is_active = FALSE
     WHERE is_active = TRUE
   `);
   
-  // Get next random word
-  const nextWord = await db.get(`
+  // First, try to get a word that hasn't reached the completion threshold
+  const availableWord = await db.get(`
+    SELECT w.*, COUNT(s.id) as current_completions
+    FROM words w
+    LEFT JOIN submissions s ON w.id = s.word_id
+    GROUP BY w.id
+    HAVING current_completions < ?
+    ORDER BY RANDOM()
+    LIMIT 1
+  `, requiredCompletions);
+  
+  if (availableWord) {
+    await db.run(
+      'UPDATE words SET is_active = TRUE, activated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      availableWord.id
+    );
+    return availableWord;
+  }
+  
+  // If all words have reached completion threshold, clear submissions and reset
+  console.log('All words completed - resetting word cycle by clearing submissions');
+  
+  // Clear all submissions to reset completion counts
+  await db.run('DELETE FROM submissions');
+  
+  // Record the reset timestamp to invalidate existing sessions
+  const resetTime = new Date().toISOString();
+  await db.run(`
+    INSERT OR REPLACE INTO settings (key, value) 
+    VALUES ('last_reset_time', ?)
+  `, resetTime);
+  
+  // Now get any word since all are available again
+  const resetWord = await db.get(`
     SELECT * FROM words 
-    WHERE completed_at IS NULL 
     ORDER BY RANDOM() 
     LIMIT 1
   `);
   
-  if (nextWord) {
+  if (resetWord) {
     await db.run(
       'UPDATE words SET is_active = TRUE, activated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      nextWord.id
+      resetWord.id
     );
-    return nextWord;
+    return resetWord;
   }
   
   return null;
@@ -265,6 +307,97 @@ export async function checkWordCompletion() {
   }
   
   return null;
+}
+
+export async function resetWordCycle() {
+  // Reset word cycle by clearing submissions but keeping points
+  const database = await getDatabase();
+  
+  console.log('Resetting word cycle - clearing submission counts but preserving points');
+  
+  // Clear all submissions to reset word completion counts
+  // Points are preserved in user stats
+  await database.run('DELETE FROM submissions');
+  
+  // Record the reset timestamp to invalidate existing sessions
+  const resetTime = new Date().toISOString();
+  await database.run(`
+    INSERT OR REPLACE INTO settings (key, value) 
+    VALUES ('last_reset_time', ?)
+  `, resetTime);
+  
+  // Activate a random word
+  const randomWord = await database.get(`
+    SELECT * FROM words 
+    ORDER BY RANDOM() 
+    LIMIT 1
+  `);
+  
+  if (randomWord) {
+    await database.run('UPDATE words SET is_active = FALSE');
+    await database.run(
+      'UPDATE words SET is_active = TRUE, activated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      randomWord.id
+    );
+  }
+  
+  console.log('Word cycle reset complete');
+  return randomWord;
+}
+
+export async function manualNextWord() {
+  // Manually move to next word (admin function)
+  return await getNextWord();
+}
+
+export async function isSessionValid(userCreatedAt: string) {
+  // Check if user's session is still valid after database resets
+  const database = await getDatabase();
+  
+  const lastReset = await database.get(`
+    SELECT value FROM settings WHERE key = 'last_reset_time'
+  `);
+  
+  if (!lastReset || !lastReset.value) {
+    return true; // No reset has occurred
+  }
+  
+  const resetTime = new Date(lastReset.value);
+  const userLoginTime = new Date(userCreatedAt);
+  
+  // If user logged in before the last reset, session is invalid
+  return userLoginTime >= resetTime;
+}
+
+export async function clearAllData() {
+  const database = await getDatabase();
+  
+  // Start transaction to ensure atomic operation
+  await database.run('BEGIN TRANSACTION');
+  
+  try {
+    // Delete all user data except admin users
+    await database.run('DELETE FROM submissions');
+    await database.run('DELETE FROM coupons');
+    await database.run('DELETE FROM users WHERE is_admin = FALSE');
+    
+    // Reset all words to inactive state
+    await database.run('UPDATE words SET is_active = FALSE');
+    
+    // Reset settings to defaults
+    await database.run('DELETE FROM settings');
+    
+    // Ensure there's an active word
+    await ensureActiveWord();
+    
+    await database.run('COMMIT');
+    console.log('Database cleared successfully');
+    
+  } catch (error) {
+    await database.run('ROLLBACK');
+    console.error('Failed to clear database:', error);
+    throw error;
+  }
 }
 
 // User operations
@@ -368,7 +501,7 @@ export async function getLeaderboard(limit: number = 10) {
     SELECT 
       u.username,
       COALESCE(points_data.total_points, 0) as total_points,
-      COALESCE(coupon_data.total_tokens, 0) as total_tokens,
+      COALESCE(coupon_data.total_coupons, 0) as total_coupons,
       COALESCE(points_data.words_completed, 0) as words_completed
     FROM users u
     LEFT JOIN (
@@ -382,12 +515,12 @@ export async function getLeaderboard(limit: number = 10) {
     LEFT JOIN (
       SELECT 
         user_id,
-        COUNT(*) as total_tokens
+        COUNT(*) as total_coupons
       FROM coupons 
       GROUP BY user_id
     ) coupon_data ON u.id = coupon_data.user_id
     WHERE u.is_admin = FALSE
-    ORDER BY total_points DESC, total_tokens DESC, words_completed DESC
+    ORDER BY total_points DESC, total_coupons DESC, words_completed DESC
     LIMIT ?
   `, limit);
 }
@@ -398,7 +531,7 @@ export async function getUserStats(userId: number) {
     SELECT 
       u.username,
       COALESCE(points_data.total_points, 0) as total_points,
-      COALESCE(coupon_data.total_tokens, 0) as total_tokens,
+      COALESCE(coupon_data.total_coupons, 0) as total_coupons,
       COALESCE(points_data.words_completed, 0) as words_completed
     FROM users u
     LEFT JOIN (
@@ -413,7 +546,7 @@ export async function getUserStats(userId: number) {
     LEFT JOIN (
       SELECT 
         user_id,
-        COUNT(*) as total_tokens
+        COUNT(*) as total_coupons
       FROM coupons 
       WHERE user_id = ?
       GROUP BY user_id
@@ -475,11 +608,11 @@ export async function getAllCouponsForAdmin() {
 export async function getAllWords() {
   const database = await getDatabase();
   return await database.all(`
-    SELECT w.id, w.word, w.is_active, w.created_at, w.activated_at, w.completed_at,
+    SELECT w.id, w.word, w.is_active, w.created_at, w.activated_at,
            COUNT(s.id) as current_completions
     FROM words w
     LEFT JOIN submissions s ON w.id = s.word_id
-    GROUP BY w.id, w.word, w.is_active, w.created_at, w.activated_at, w.completed_at
+    GROUP BY w.id, w.word, w.is_active, w.created_at, w.activated_at
     ORDER BY w.id ASC
   `);
 }
@@ -523,6 +656,107 @@ export async function removeWord(wordId: number) {
   }
   
   await database.run('DELETE FROM words WHERE id = ?', wordId);
+}
+
+export async function bulkAddWords(words: string[]) {
+  const database = await getDatabase();
+  
+  // Clean and validate words
+  const cleanWords = words
+    .map(word => word.trim().toLowerCase())
+    .filter(word => word.length > 0)
+    .filter((word, index, arr) => arr.indexOf(word) === index); // Remove duplicates
+  
+  let addedCount = 0;
+  
+  for (const word of cleanWords) {
+    try {
+      // Check if word already exists
+      const existing = await database.get('SELECT id FROM words WHERE word = ?', word);
+      if (!existing) {
+        await database.run(
+          'INSERT INTO words (word, created_at) VALUES (?, CURRENT_TIMESTAMP)',
+          word
+        );
+        addedCount++;
+      }
+    } catch (error) {
+      console.error(`Failed to add word "${word}":`, error);
+    }
+  }
+  
+  return addedCount;
+}
+
+export async function bulkReplaceWords(words: string[]) {
+  const database = await getDatabase();
+  
+  // Clean and validate words
+  const cleanWords = words
+    .map(word => word.trim().toLowerCase())
+    .filter(word => word.length > 0)
+    .filter((word, index, arr) => arr.indexOf(word) === index); // Remove duplicates
+  
+  // Start transaction to ensure data consistency
+  await database.run('BEGIN TRANSACTION');
+  
+  try {
+    // Get current active word to preserve it
+    const currentActiveWord = await database.get('SELECT word FROM words WHERE is_active = TRUE');
+    
+    // Delete all words EXCEPT those referenced in submissions table
+    // This preserves data integrity for existing points
+    // Note: Coupons table stores word as text, not word_id, so we check by word name
+    await database.run(`
+      DELETE FROM words 
+      WHERE id NOT IN (
+        SELECT DISTINCT word_id FROM submissions 
+      )
+      AND word NOT IN (
+        SELECT DISTINCT word FROM coupons
+      )
+    `);
+    
+    // Add new words
+    let addedCount = 0;
+    for (const word of cleanWords) {
+      try {
+        // Check if word already exists (might be preserved due to dependencies)
+        const existing = await database.get('SELECT id FROM words WHERE word = ?', word);
+        if (!existing) {
+          await database.run(
+            'INSERT INTO words (word, created_at) VALUES (?, CURRENT_TIMESTAMP)',
+            word
+          );
+          addedCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to add word "${word}":`, error);
+      }
+    }
+    
+    // Restore active word if it was among the new words
+    if (currentActiveWord && cleanWords.includes(currentActiveWord.word)) {
+      await database.run(
+        'UPDATE words SET is_active = TRUE, activated_at = CURRENT_TIMESTAMP WHERE word = ?',
+        currentActiveWord.word
+      );
+    } else if (cleanWords.length > 0) {
+      // Set a random new word as active if the previous active word was removed
+      const randomWord = cleanWords[Math.floor(Math.random() * cleanWords.length)];
+      await database.run(
+        'UPDATE words SET is_active = TRUE, activated_at = CURRENT_TIMESTAMP WHERE word = ?',
+        randomWord
+      );
+    }
+    
+    await database.run('COMMIT');
+    return addedCount;
+    
+  } catch (error) {
+    await database.run('ROLLBACK');
+    throw error;
+  }
 }
 
 export async function deleteUser(userId: number) {

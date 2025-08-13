@@ -25,7 +25,7 @@ type GameAction =
   | { type: 'SET_USER'; payload: User | null }
   | { type: 'UPDATE_GAME_STATE'; payload: GameState }
   | { type: 'UPDATE_LEADERBOARD'; payload: LeaderboardEntry[] }
-  | { type: 'UPDATE_USER_POINTS'; payload: { points: number; tokens: number } };
+  | { type: 'UPDATE_USER_POINTS'; payload: { points: number; coupons: number } };
 
 const initialState: GameContextState = {
   user: null,
@@ -89,10 +89,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const refreshLeaderboard = useCallback(async () => {
     try {
       const leaderboardData = await authService.getLeaderboard(20);
-      const formattedLeaderboard = leaderboardData.map((entry: { username: string; points: number; tokens: number }) => ({
+      const formattedLeaderboard = leaderboardData.map((entry: { username: string; points: number; coupons: number }) => ({
         username: entry.username,
         points: entry.points,
-        tokens: entry.tokens
+        coupons: entry.coupons
       }));
       dispatch({ type: 'UPDATE_LEADERBOARD', payload: formattedLeaderboard });
     } catch (error) {
@@ -124,7 +124,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const fullUser = {
         ...user,
         points: userStats.points,
-        tokens: userStats.tokens
+        coupons: userStats.coupons
       };
       
       dispatch({ type: 'SET_USER', payload: fullUser });
@@ -169,7 +169,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           type: 'UPDATE_USER_POINTS',
           payload: {
             points: state.user.points + result.points,
-            tokens: state.user.tokens + (result.token ? 1 : 0),
+            coupons: state.user.coupons + (result.token ? 1 : 0),
           },
         });
 

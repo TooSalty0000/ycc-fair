@@ -16,9 +16,12 @@ const notoSansKR = Noto_Sans_KR({
 })
 
 export const metadata: Metadata = {
-  title: "YCC 포토 헌트 - 실시간 사진 찾기 게임",
-  description: "AI 기반 실시간 사진 스캐빈저 헌트 게임. 키워드에 맞는 사진을 찍고 포인트를 획득하세요!",
-  generator: "v0.dev",
+  title: "YCC 퀘스트 스냅 - 실시간 사진 보물찾기 게임",
+  description: "AI 기반 실시간 사진 보물찾기기 게임. 키워드에 맞는 사진을 찍고 포인트를 획득하세요!",
+  icons: {
+    icon: "/ycc_logo.ico",
+    shortcut: "/ycc_logo.ico",
+  },
 }
 
 export default function RootLayout({

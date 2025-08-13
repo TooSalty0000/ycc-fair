@@ -44,7 +44,7 @@ export function GameInterface({ user }: GameInterfaceProps) {
   const [showCamera, setShowCamera] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [recentSubmission, setRecentSubmission] = useState<GameResult | null>(null)
-  const [userTokens, setUserTokens] = useState(0)
+  const [userCoupons, setUserCoupons] = useState(0)
   const [hasSubmittedForCurrentWord, setHasSubmittedForCurrentWord] = useState(false)
   const [shareFeedback, setShareFeedback] = useState<string | null>(null)
 
@@ -110,7 +110,7 @@ export function GameInterface({ user }: GameInterfaceProps) {
 
       if (response.ok) {
         const data = await response.json()
-        setUserTokens(data.tokens || 0)
+        setUserCoupons(data.coupons || 0)
         // Update user points if available
         if (user && data.points !== undefined) {
           user.points = data.points
@@ -122,9 +122,9 @@ export function GameInterface({ user }: GameInterfaceProps) {
   }
 
   const handleShare = async () => {
-    const shareText = `저는 이미 오늘의 미션 "${gameState.currentKeyword}"을(를) 완료했어요! YCC 포토 헌트에서 함께 도전해요!`
+    const shareText = `저는 이미 "${gameState.currentKeyword}"을(를) 찾았았어요! YCC 퀘스트 스냅에서 함께 도전해요!`
     const shareData = {
-      title: "YCC 포토 헌트",
+      title: "YCC 퀘스트 스냅",
       text: shareText,
       url: typeof window !== "undefined" ? window.location.href : undefined,
     }
@@ -184,9 +184,9 @@ export function GameInterface({ user }: GameInterfaceProps) {
           user.points = (user.points || 0) + data.points
         }
         
-        // Update tokens if earned
+        // Update coupons if earned
         if (data.token) {
-          setUserTokens(prev => prev + 1)
+          setUserCoupons(prev => prev + 1)
         }
         
         // Reload game data if word progressed
@@ -219,7 +219,6 @@ export function GameInterface({ user }: GameInterfaceProps) {
       })
     } finally {
       setIsProcessing(false)
-      setShowCamera(false)
       // Clear result after 8 seconds
       setTimeout(() => setRecentSubmission(null), 8000)
     }
@@ -266,6 +265,60 @@ export function GameInterface({ user }: GameInterfaceProps) {
         </CardContent>
       </Card>
 
+      {/* Recent Submission Result */}
+      {recentSubmission && (
+        <Card
+          className={`border-2 transition-all duration-500 ${
+            recentSubmission.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
+          }`}
+        >
+          <CardContent className="p-4">
+            <div className="text-center space-y-3">
+              <div className="flex items-center justify-center space-x-2">
+                {recentSubmission.success && <Trophy className="h-5 w-5 text-green-600" />}
+                <span
+                  className={`text-lg font-semibold ${
+                    recentSubmission.success ? "text-green-700" : "text-red-700"
+                  }`}
+                >
+                  {recentSubmission.success ? "성공!" : "실패"}
+                </span>
+                {recentSubmission.token && (
+                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    쿠폰!
+                  </Badge>
+                )}
+              </div>
+              
+              <p className="text-sm text-gray-600">{recentSubmission.message}</p>
+              
+              {recentSubmission.success && (
+                <div className="space-y-2">
+                  <Badge className="bg-green-100 text-green-800">
+                    +{recentSubmission.points} 포인트
+                  </Badge>
+                  
+                  {recentSubmission.confidence && (
+                    <p className="text-xs text-gray-500">
+                      AI 확신도: {Math.round(recentSubmission.confidence)}%
+                    </p>
+                  )}
+                  
+                  {recentSubmission.wordProgressed && recentSubmission.nextWord && (
+                    <div className="mt-3 p-3 bg-blue-100 rounded-lg">
+                      <p className="text-sm font-medium text-blue-800">
+                        🎉 새로운 단어가 등장했습니다: &quot;{recentSubmission.nextWord}&quot;
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Camera Button or Completion Status */}
       <Card>
         <CardContent className="p-6 text-center">
@@ -296,7 +349,7 @@ export function GameInterface({ user }: GameInterfaceProps) {
                       <Share2 className="h-4 w-4 mr-1" /> 공유하기
                     </Button>
                     <Button variant="secondary" onClick={async () => {
-                      const text = `저는 이미 오늘의 미션 "${gameState.currentKeyword}"을(를) 완료했어요! YCC 포토 헌트에서 함께 도전해요! ${typeof window !== "undefined" ? window.location.href : ""}`.trim()
+                      const text = `저는 이미 오늘의 미션 "${gameState.currentKeyword}"을(를) 완료했어요! YCC 퀘스트 스냅 헌트에서 함께 도전해요! ${typeof window !== "undefined" ? window.location.href : ""}`.trim()
                       await navigator.clipboard.writeText(text)
                       setShareFeedback("클립보드에 복사했어요!")
                       setTimeout(() => setShareFeedback(null), 3000)
@@ -389,7 +442,7 @@ export function GameInterface({ user }: GameInterfaceProps) {
               <Gift className="w-5 h-5 text-yellow-500" />
               <span className="font-medium text-gray-700 text-sm">쿠폰</span>
             </div>
-            <p className="text-2xl font-bold text-yellow-600">{userTokens}</p>
+            <p className="text-2xl font-bold text-yellow-600">{userCoupons}</p>
           </CardContent>
         </Card>
 
@@ -404,60 +457,6 @@ export function GameInterface({ user }: GameInterfaceProps) {
           </CardContent>
         </Card>
       </div>
-
-      {/* Recent Submission Result */}
-      {recentSubmission && (
-        <Card
-          className={`border-2 transition-all duration-500 ${
-            recentSubmission.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
-          }`}
-        >
-          <CardContent className="p-4">
-            <div className="text-center space-y-3">
-              <div className="flex items-center justify-center space-x-2">
-                {recentSubmission.success && <Trophy className="h-5 w-5 text-green-600" />}
-                <span
-                  className={`text-lg font-semibold ${
-                    recentSubmission.success ? "text-green-700" : "text-red-700"
-                  }`}
-                >
-                  {recentSubmission.success ? "성공!" : "실패"}
-                </span>
-                {recentSubmission.token && (
-                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                    <Sparkles className="h-4 w-4 mr-1" />
-                    쿠폰!
-                  </Badge>
-                )}
-              </div>
-              
-              <p className="text-sm text-gray-600">{recentSubmission.message}</p>
-              
-              {recentSubmission.success && (
-                <div className="space-y-2">
-                  <Badge className="bg-green-100 text-green-800">
-                    +{recentSubmission.points} 포인트
-                  </Badge>
-                  
-                  {recentSubmission.confidence && (
-                    <p className="text-xs text-gray-500">
-                      AI 확신도: {Math.round(recentSubmission.confidence)}%
-                    </p>
-                  )}
-                  
-                  {recentSubmission.wordProgressed && recentSubmission.nextWord && (
-                    <div className="mt-3 p-3 bg-blue-100 rounded-lg">
-                      <p className="text-sm font-medium text-blue-800">
-                        🎉 새로운 단어가 등장했습니다: &quot;{recentSubmission.nextWord}&quot;
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Camera Modal */}
       {showCamera && (

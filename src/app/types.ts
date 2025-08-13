@@ -2,7 +2,7 @@ export interface User {
   id: string;
   username: string;
   points: number;
-  tokens: number;
+  coupons: number;
   isLoggedIn: boolean;
   isAdmin?: boolean;
 }
@@ -18,7 +18,7 @@ export interface GameState {
 export interface LeaderboardEntry {
   username: string;
   points: number;
-  tokens: number;
+  coupons: number;
 }
 
 export interface CameraProps {

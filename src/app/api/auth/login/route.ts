@@ -59,12 +59,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create JWT token
+    // Create JWT token with login time for session validation
+    const loginTime = new Date().toISOString();
     const token = jwt.sign(
       { 
         userId: user.id, 
         username: user.username,
-        isAdmin: user.is_admin || false
+        isAdmin: user.is_admin || false,
+        loginTime: loginTime
       },
       JWT_SECRET,
       { expiresIn: '24h' }

@@ -6,7 +6,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Camera, Trophy, Users, AlertTriangle } from "lucide-react"
+import { Camera, Trophy, Gift, AlertTriangle } from "lucide-react"
 
 interface LoginFormProps {
   onLogin: (userData: { username: string; points: number; is_admin?: boolean }) => void
@@ -116,8 +116,8 @@ export function LoginForm({ onLogin }: LoginFormProps) {
             />
             <Camera className="w-10 h-10 fallback-icon" style={{ display: 'none' }} />
           </div>
-          <h1 className="text-3xl font-bold mb-2">YCC 포토 헌트</h1>
-          <p className="text-indigo-100">실시간 사진 찾기 게임에 참여하세요!</p>
+          <h1 className="text-3xl font-bold mb-2">YCC 퀘스트 스냅</h1>
+          <p className="text-indigo-100">YCC 퀘스트 스냅 게임에 참여하세요!</p>
         </div>
 
         {/* Features */}
@@ -126,7 +126,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 mb-2">
               <Camera className="w-6 h-6 mx-auto" />
             </div>
-            <p className="text-xs text-indigo-100">실시간 촬영</p>
+            <p className="text-xs text-indigo-100">미션 사진 촬영</p>
           </div>
           <div className="text-center text-white">
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 mb-2">
@@ -136,9 +136,9 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           </div>
           <div className="text-center text-white">
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 mb-2">
-              <Users className="w-6 h-6 mx-auto" />
+              <Gift className="w-6 h-6 mx-auto" />
             </div>
-            <p className="text-xs text-indigo-100">실시간 순위</p>
+            <p className="text-xs text-indigo-100">쿠폰 보상 받기</p>
           </div>
         </div>
 

@@ -17,7 +17,7 @@ interface UserStats {
   id: number
   username: string
   points: number
-  tokens: number
+  coupons: number
   wordsCompleted: number
   is_admin?: boolean
 }
@@ -142,7 +142,7 @@ export function UserProfile({ user, onLogout }: UserProfileProps) {
               <p className="text-xs">순위</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">{userStats?.tokens || 0}</p>
+              <p className="text-2xl font-bold text-white">{userStats?.coupons || 0}</p>
               <p className="text-xs">쿠폰</p>
             </div>
           </div>
@@ -167,7 +167,7 @@ export function UserProfile({ user, onLogout }: UserProfileProps) {
               <Gift className="w-5 h-5 text-yellow-500" />
               <span className="font-semibold text-gray-700 text-sm">쿠폰</span>
             </div>
-            <p className="text-2xl font-bold text-yellow-600">{userStats?.tokens || 0}</p>
+            <p className="text-2xl font-bold text-yellow-600">{userStats?.coupons || 0}</p>
           </CardContent>
         </Card>
 
@@ -200,7 +200,7 @@ export function UserProfile({ user, onLogout }: UserProfileProps) {
         <CardContent className="space-y-4">
           <div className="text-center">
             <p className="text-gray-600 mb-2">
-              YCC 포토 헌트에 참여해주셔서 감사합니다!
+              YCC 퀘스트 스냅에 참여해주셔서 감사합니다!
             </p>
             <div className="bg-blue-50 rounded-lg p-4">
               <p className="text-sm text-blue-800">

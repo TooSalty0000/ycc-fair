@@ -16,7 +16,9 @@ import {
   Menu,
   X,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Upload,
+  FileText
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -77,6 +79,8 @@ export function AdminPage({ onLogout }: AdminPageProps) {
   const [couponDropRate, setCouponDropRate] = useState(30)
   const [defaultRequiredCompletions, setDefaultRequiredCompletions] = useState(5)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadResult, setUploadResult] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -143,8 +147,16 @@ export function AdminPage({ onLogout }: AdminPageProps) {
       })
 
       if (response.ok) {
+        const data = await response.json()
         setNewWord("")
         await loadData()
+        
+        // Show success message for specific actions
+        if (action === 'reset_cycle') {
+          alert(`✅ 단어 순환이 성공적으로 재설정되었습니다!\n\n현재 활성 단어: "${data.currentWord || '없음'}"\n모든 단어의 완료 횟수가 0으로 재설정되었습니다.`)
+        } else if (action === 'next_word') {
+          alert(`✅ 다음 단어로 변경되었습니다!\n\n새 활성 단어: "${data.nextWord || '없음'}"`)
+        }
       } else {
         const errorData = await response.json()
         alert(`오류: ${errorData.error}`)
@@ -281,6 +293,8 @@ export function AdminPage({ onLogout }: AdminPageProps) {
 
       if (response.ok) {
         alert("기본 필요 완료 수가 업데이트되었습니다!")
+        // Reload data to refresh completion status
+        await loadData()
       } else {
         const errorData = await response.json()
         alert(`오류: ${errorData.error}`)
@@ -290,6 +304,136 @@ export function AdminPage({ onLogout }: AdminPageProps) {
       alert("오류가 발생했습니다")
     }
   }
+
+  const handleFileUpload = async (file: File, operation: 'add' | 'replace') => {
+    if (!file) return
+
+    setIsUploading(true)
+    setUploadResult(null)
+
+    try {
+      const text = await file.text()
+      const words = text
+        .split('\n')
+        .map(word => word.trim())
+        .filter(word => word.length > 0)
+
+      if (words.length === 0) {
+        alert('파일에 유효한 단어가 없습니다.')
+        return
+      }
+
+      const action = operation === 'add' ? 'bulk_add' : 'bulk_replace'
+      const response = await fetch("/api/admin/words", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`
+        },
+        body: JSON.stringify({ action, words })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setUploadResult(data.message)
+        await loadData() // Reload data to show changes
+      } else {
+        alert(`오류: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('File upload error:', error)
+      alert('파일 처리 중 오류가 발생했습니다.')
+    } finally {
+      setIsUploading(false)
+      setTimeout(() => setUploadResult(null), 5000)
+    }
+  }
+
+  const FileUploadSection = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center">
+          <FileText className="h-5 w-5 mr-2" />
+          파일로 단어 관리
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="text-sm text-gray-600">
+          <p>• 텍스트 파일(.txt)을 업로드하여 여러 단어를 한 번에 추가하거나 교체할 수 있습니다</p>
+          <p>• 각 단어는 새 줄로 구분되어야 합니다</p>
+          <p>• 중복된 단어는 자동으로 제거됩니다</p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="add-file">단어 추가</Label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+              <input
+                id="add-file"
+                type="file"
+                accept=".txt"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleFileUpload(file, 'add')
+                }}
+                className="hidden"
+                disabled={isUploading}
+              />
+              <label
+                htmlFor="add-file"
+                className="cursor-pointer text-sm text-blue-600 hover:text-blue-800"
+              >
+                클릭하여 파일 선택
+              </label>
+              <p className="text-xs text-gray-500 mt-1">기존 단어에 추가</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="replace-file">단어 교체</Label>
+            <div className="border-2 border-dashed border-red-300 rounded-lg p-4 text-center">
+              <Upload className="h-8 w-8 mx-auto mb-2 text-red-400" />
+              <input
+                id="replace-file"
+                type="file"
+                accept=".txt"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file && confirm('모든 기존 단어가 삭제됩니다. 계속하시겠습니까?')) {
+                    handleFileUpload(file, 'replace')
+                  }
+                }}
+                className="hidden"
+                disabled={isUploading}
+              />
+              <label
+                htmlFor="replace-file"
+                className="cursor-pointer text-sm text-red-600 hover:text-red-800"
+              >
+                클릭하여 파일 선택
+              </label>
+              <p className="text-xs text-gray-500 mt-1">모든 단어 교체</p>
+            </div>
+          </div>
+        </div>
+
+        {isUploading && (
+          <div className="flex items-center justify-center space-x-2 p-4 bg-blue-50 rounded-lg">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <span className="text-sm text-blue-700">파일 처리 중...</span>
+          </div>
+        )}
+
+        {uploadResult && (
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm text-green-700">✅ {uploadResult}</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
 
   const activeWord = words.find(w => w.is_active)
   const totalUsers = users.length
@@ -514,12 +658,15 @@ export function AdminPage({ onLogout }: AdminPageProps) {
                       <h3 className="text-lg font-bold text-green-700">현재 활성 단어: &quot;{activeWord.word}&quot;</h3>
                       <p className="text-sm text-gray-600">
                         완료 현황: {activeWord.current_completions}명이 성공 
-                        (다음 단어까지 {defaultRequiredCompletions - activeWord.current_completions}명 남음)
+                        {activeWord.current_completions >= defaultRequiredCompletions ? 
+                          ' (완료됨 - 자동 진행 대기)' : 
+                          ` (다음 단어까지 ${Math.max(0, defaultRequiredCompletions - activeWord.current_completions)}명 남음)`
+                        }
                       </p>
                     </div>
                   </div>
                   <div className="w-full lg:w-32">
-                    <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                       <div 
                         className="bg-green-600 h-3 rounded-full transition-all duration-300"
                         style={{ 
@@ -527,9 +674,13 @@ export function AdminPage({ onLogout }: AdminPageProps) {
                         }}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1 text-center">
-                      {Math.max(0, defaultRequiredCompletions - activeWord.current_completions)}명 더 필요
-                    </p>
+                    <Button 
+                      onClick={() => handleWordAction('next_word')}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Play className="h-4 w-4 mr-1" />
+                      다음 단어
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -712,6 +863,9 @@ export function AdminPage({ onLogout }: AdminPageProps) {
                       </CardContent>
                     </Card>
 
+                    {/* File Upload Section */}
+                    <FileUploadSection />
+
                     {/* Words List */}
                     <div className="space-y-3">
                       {words.map((word) => (
@@ -735,7 +889,8 @@ export function AdminPage({ onLogout }: AdminPageProps) {
                                     <div className="w-16 bg-gray-200 rounded-full h-2">
                                       <div 
                                         className={`h-2 rounded-full transition-all duration-300 ${
-                                          word.is_active ? "bg-green-600" : word.completed_at ? "bg-blue-600" : "bg-gray-400"
+                                          word.is_active ? "bg-green-600" : 
+                                          word.current_completions >= defaultRequiredCompletions ? "bg-blue-600" : "bg-gray-400"
                                         }`}
                                         style={{ 
                                           width: `${Math.min((word.current_completions / defaultRequiredCompletions) * 100, 100)}%` 
@@ -839,6 +994,62 @@ export function AdminPage({ onLogout }: AdminPageProps) {
                         <Button onClick={handleDefaultCompletionsChange} className="w-full">
                           <Settings className="h-4 w-4 mr-2" />
                           설정 저장
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    {/* Word Cycle Reset */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>단어 순환 재설정</CardTitle>
+                        <p className="text-sm text-gray-600">모든 단어를 다시 사용할 수 있도록 순환을 재설정합니다</p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-700">
+                          <p>• 플레이어 포인트는 유지됩니다</p>
+                          <p>• 모든 제출 기록이 삭제됩니다</p>
+                          <p>• 완료 횟수가 0으로 재설정됩니다</p>
+                          <p>• 모든 단어를 다시 사용할 수 있게 됩니다</p>
+                        </div>
+                        <Button 
+                          onClick={() => {
+                            if (confirm('정말로 단어 순환을 재설정하시겠습니까?\n\n이 작업은 다음과 같은 효과가 있습니다:\n• 모든 단어의 완료 횟수가 0으로 재설정됩니다\n• 모든 제출 기록이 삭제됩니다\n• 플레이어 포인트는 유지됩니다\n• 모든 단어를 다시 사용할 수 있게 됩니다')) {
+                              handleWordAction('reset_cycle')
+                            }
+                          }}
+                          className="w-full bg-purple-600 hover:bg-purple-700"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          단어 순환 재설정
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    {/* Database Reset */}
+                    <Card className="border-red-200">
+                      <CardHeader>
+                        <CardTitle className="text-red-600">데이터베이스 초기화</CardTitle>
+                        <p className="text-sm text-gray-600">⚠️ 모든 플레이어 데이터를 삭제합니다 (관리자 계정 제외)</p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="bg-red-50 p-3 rounded-lg text-sm text-red-700 space-y-1">
+                          <p><strong>삭제될 데이터:</strong></p>
+                          <p>• 모든 사용자 계정 (관리자 제외)</p>
+                          <p>• 모든 포인트 및 제출 기록</p>
+                          <p>• 모든 쿠폰</p>
+                          <p>• 게임 설정</p>
+                        </div>
+                        <Button 
+                          onClick={() => {
+                            if (confirm('정말로 모든 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+                              handleWordAction('clear_all')
+                            }
+                          }}
+                          variant="destructive" 
+                          className="w-full"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          모든 데이터 삭제
                         </Button>
                       </CardContent>
                     </Card>

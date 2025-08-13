@@ -10,7 +10,6 @@ interface Player {
   rank: number
   username: string
   points: number
-  tokens: number
   wordsCompleted: number
 }
 
@@ -150,11 +149,6 @@ export function Leaderboard() {
                     <Zap className="w-4 h-4 text-yellow-500" />
                     <span className="font-bold text-indigo-600">{player.points}</span>
                   </div>
-                  {player.tokens > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      🎁 {player.tokens}개
-                    </Badge>
-                  )}
                 </div>
               </div>
             ))}
