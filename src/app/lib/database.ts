@@ -369,6 +369,47 @@ export async function isSessionValid(userCreatedAt: string) {
   return userLoginTime >= resetTime;
 }
 
+// Booth operating hours functions
+export async function getBoothHours() {
+  const database = await getDatabase();
+  
+  const openTime = await database.get(`SELECT value FROM settings WHERE key = 'booth_open_time'`);
+  const closeTime = await database.get(`SELECT value FROM settings WHERE key = 'booth_close_time'`);
+  
+  return {
+    openTime: openTime?.value || '09:00',
+    closeTime: closeTime?.value || '18:00'
+  };
+}
+
+export async function setBoothHours(openTime: string, closeTime: string) {
+  const database = await getDatabase();
+  
+  await database.run(`
+    INSERT OR REPLACE INTO settings (key, value) VALUES ('booth_open_time', ?)
+  `, openTime);
+  
+  await database.run(`
+    INSERT OR REPLACE INTO settings (key, value) VALUES ('booth_close_time', ?)
+  `, closeTime);
+}
+
+export async function isBoothOpen() {
+  const { openTime, closeTime } = await getBoothHours();
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinutes = now.getMinutes();
+  const currentTotalMinutes = currentHour * 60 + currentMinutes;
+  
+  const [openHour, openMin] = openTime.split(':').map(Number);
+  const [closeHour, closeMin] = closeTime.split(':').map(Number);
+  
+  const openMinutes = openHour * 60 + openMin;
+  const closeMinutes = closeHour * 60 + closeMin;
+  
+  return currentTotalMinutes >= openMinutes && currentTotalMinutes < closeMinutes;
+}
+
 export async function clearAllData() {
   const database = await getDatabase();
   

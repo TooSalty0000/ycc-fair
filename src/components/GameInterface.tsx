@@ -47,16 +47,23 @@ export function GameInterface({ user }: GameInterfaceProps) {
   const [userCoupons, setUserCoupons] = useState(0)
   const [hasSubmittedForCurrentWord, setHasSubmittedForCurrentWord] = useState(false)
   const [shareFeedback, setShareFeedback] = useState<string | null>(null)
+  const [boothStatus, setBoothStatus] = useState<{
+    isOpen: boolean;
+    openTime: string;
+    closeTime: string;
+  } | null>(null)
 
   // Load game data on mount and periodically
   useEffect(() => {
     loadGameData()
     loadUserStats()
     loadSubmissionStatus()
+    loadBoothStatus()
     const interval = setInterval(() => {
       loadGameData()
       loadUserStats()
       loadSubmissionStatus()
+      loadBoothStatus()
     }, 10000) // Refresh every 10 seconds
     return () => clearInterval(interval)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -118,6 +125,27 @@ export function GameInterface({ user }: GameInterfaceProps) {
       }
     } catch (error) {
       console.error("Failed to load user stats:", error)
+    }
+  }
+
+  const loadBoothStatus = async () => {
+    try {
+      const response = await fetch("/api/game/booth-status", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setBoothStatus({
+          isOpen: data.isOpen,
+          openTime: data.openTime,
+          closeTime: data.closeTime
+        })
+      }
+    } catch (error) {
+      console.error("Failed to load booth status:", error)
     }
   }
 
@@ -265,6 +293,28 @@ export function GameInterface({ user }: GameInterfaceProps) {
         </CardContent>
       </Card>
 
+      {/* Booth Status */}
+      {boothStatus && (
+        <Card className={`border-2 ${boothStatus.isOpen ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <div className={`w-3 h-3 rounded-full ${boothStatus.isOpen ? 'bg-green-500' : 'bg-orange-500'}`} />
+              <span className={`font-semibold ${boothStatus.isOpen ? 'text-green-700' : 'text-orange-700'}`}>
+                {boothStatus.isOpen ? '부스 운영 중' : '부스 운영 시간 외'}
+              </span>
+            </div>
+            <div className="text-center text-sm text-gray-600">
+              <p>운영 시간: {boothStatus.openTime} ~ {boothStatus.closeTime}</p>
+              {!boothStatus.isOpen && (
+                <p className="text-orange-600 font-medium mt-1">
+                  운영 시간 내에만 게임에 참여할 수 있습니다
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Recent Submission Result */}
       {recentSubmission && (
         <Card
@@ -383,8 +433,8 @@ export function GameInterface({ user }: GameInterfaceProps) {
               <Button
                 onClick={() => setShowCamera(true)}
                 size="lg"
-                disabled={isProcessing}
-                className="w-full h-16 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-lg font-semibold"
+                disabled={isProcessing || !boothStatus?.isOpen}
+                className="w-full h-16 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-lg font-semibold disabled:opacity-50"
               >
                 {isProcessing ? (
                   <div className="flex items-center space-x-3">
@@ -399,7 +449,10 @@ export function GameInterface({ user }: GameInterfaceProps) {
                 )}
               </Button>
               <p className="text-sm text-gray-500">
-                카메라로 직접 촬영해야 합니다 (화면 촬영 금지)
+                {!boothStatus?.isOpen ? 
+                  "부스 운영 시간 외에는 참여할 수 없습니다" : 
+                  "카메라로 직접 촬영해야 합니다 (화면 촬영 금지)"
+                }
               </p>
               
               {isProcessing && (

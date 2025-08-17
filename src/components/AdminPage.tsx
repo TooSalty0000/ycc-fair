@@ -78,6 +78,8 @@ export function AdminPage({ onLogout }: AdminPageProps) {
   const [newAdminPassword, setNewAdminPassword] = useState("")
   const [couponDropRate, setCouponDropRate] = useState(30)
   const [defaultRequiredCompletions, setDefaultRequiredCompletions] = useState(5)
+  const [boothOpenTime, setBoothOpenTime] = useState('09:00')
+  const [boothCloseTime, setBoothCloseTime] = useState('18:00')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<string | null>(null)
@@ -121,6 +123,8 @@ export function AdminPage({ onLogout }: AdminPageProps) {
         const settingsData = await settingsResponse.json()
         setCouponDropRate(settingsData.coupon_drop_rate || 30)
         setDefaultRequiredCompletions(settingsData.default_required_completions || 5)
+        setBoothOpenTime(settingsData.booth_open_time || '09:00')
+        setBoothCloseTime(settingsData.booth_close_time || '18:00')
       }
 
     } catch (error) {
@@ -301,6 +305,33 @@ export function AdminPage({ onLogout }: AdminPageProps) {
       }
     } catch (error) {
       console.error("Settings update error:", error)
+      alert("오류가 발생했습니다")
+    }
+  }
+
+  const handleBoothHoursChange = async () => {
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`
+        },
+        body: JSON.stringify({
+          action: "updateBoothHours",
+          openTime: boothOpenTime,
+          closeTime: boothCloseTime
+        })
+      })
+
+      if (response.ok) {
+        alert("부스 운영 시간이 업데이트되었습니다!")
+      } else {
+        const errorData = await response.json()
+        alert(`오류: ${errorData.error}`)
+      }
+    } catch (error) {
+      console.error("Booth hours update error:", error)
       alert("오류가 발생했습니다")
     }
   }
@@ -963,6 +994,47 @@ export function AdminPage({ onLogout }: AdminPageProps) {
                         <Button onClick={handleCouponRateChange} className="w-full">
                           <Settings className="h-4 w-4 mr-2" />
                           설정 저장
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    {/* Booth Operating Hours */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>부스 운영 시간</CardTitle>
+                        <p className="text-sm text-gray-600">부스 개장 및 폐장 시간을 설정합니다 (사용자의 로컬 시간대로 표시됩니다)</p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="open-time" className="text-sm">개장 시간</Label>
+                            <Input
+                              id="open-time"
+                              type="time"
+                              value={boothOpenTime}
+                              onChange={(e) => setBoothOpenTime(e.target.value)}
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="close-time" className="text-sm">폐장 시간</Label>
+                            <Input
+                              id="close-time"
+                              type="time"
+                              value={boothCloseTime}
+                              onChange={(e) => setBoothCloseTime(e.target.value)}
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <p>• 현재 설정: {boothOpenTime} ~ {boothCloseTime}</p>
+                          <p>• 운영 시간 외에는 게임 참여가 제한됩니다</p>
+                          <p>• 시간은 사용자의 로컬 시간대로 표시됩니다</p>
+                        </div>
+                        <Button onClick={handleBoothHoursChange} className="w-full">
+                          <Settings className="h-4 w-4 mr-2" />
+                          운영 시간 저장
                         </Button>
                       </CardContent>
                     </Card>

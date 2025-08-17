@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '../../../lib/auth-utils';
-import { getCurrentWord, createSubmission, addCoupon, checkWordCompletion, getDatabase, hasUserSubmittedForWord } from '../../../lib/database';
+import { getCurrentWord, createSubmission, addCoupon, checkWordCompletion, getDatabase, hasUserSubmittedForWord, isBoothOpen } from '../../../lib/database';
 import { verifyImageWithGemini } from '../../../lib/gemini';
 
 export async function POST(request: NextRequest) {
@@ -12,6 +12,18 @@ export async function POST(request: NextRequest) {
     if (authUser.isAdmin) {
       return NextResponse.json(
         { error: '관리자 사용자는 게임을 할 수 없습니다' },
+        { status: 403 }
+      );
+    }
+
+    // Check if booth is open
+    const boothOpen = await isBoothOpen();
+    if (!boothOpen) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: '부스 운영 시간이 아닙니다. 운영 시간 내에 다시 시도해주세요.' 
+        },
         { status: 403 }
       );
     }

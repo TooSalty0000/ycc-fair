@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '../../../lib/database';
+import { getDatabase, setBoothHours, getBoothHours } from '../../../lib/database';
 import { requireAuth } from '../../../lib/auth-utils';
 
 export async function POST(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     const db = await getDatabase();
 
-    const { action, rate, completions } = await request.json();
+    const { action, rate, completions, openTime, closeTime } = await request.json();
 
     if (action === 'updateCouponRate') {
       if (typeof rate !== 'number' || rate < 0 || rate > 100) {
@@ -52,6 +52,27 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (action === 'updateBoothHours') {
+      if (!openTime || !closeTime) {
+        return NextResponse.json({ error: '개장 시간과 폐장 시간이 필요합니다' }, { status: 400 });
+      }
+
+      // Validate time format (HH:MM)
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(openTime) || !timeRegex.test(closeTime)) {
+        return NextResponse.json({ error: '시간 형식이 올바르지 않습니다 (HH:MM)' }, { status: 400 });
+      }
+
+      await setBoothHours(openTime, closeTime);
+
+      return NextResponse.json({ 
+        success: true, 
+        message: '부스 운영 시간이 업데이트되었습니다',
+        openTime, 
+        closeTime 
+      });
+    }
+
     return NextResponse.json({ error: '알 수 없는 작업입니다' }, { status: 400 });
 
   } catch (error) {
@@ -84,10 +105,15 @@ export async function GET(request: NextRequest) {
     
     const couponDropRate = couponRateSetting ? parseInt(couponRateSetting.value) : 30; // Default to 30%
     const defaultRequiredCompletions = completionsSetting ? parseInt(completionsSetting.value) : 5; // Default to 5
+    
+    // Get booth hours
+    const boothHours = await getBoothHours();
 
     return NextResponse.json({
       coupon_drop_rate: couponDropRate,
-      default_required_completions: defaultRequiredCompletions
+      default_required_completions: defaultRequiredCompletions,
+      booth_open_time: boothHours.openTime,
+      booth_close_time: boothHours.closeTime
     });
 
   } catch (error) {
