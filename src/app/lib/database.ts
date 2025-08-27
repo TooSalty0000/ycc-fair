@@ -12,6 +12,20 @@ export async function getDatabase() {
       ? path.join(process.cwd(), 'data', 'database.sqlite')
       : path.join(process.cwd(), 'database.sqlite');
     
+    console.log(`Database path: ${dbPath}, NODE_ENV: ${process.env.NODE_ENV}, CWD: ${process.cwd()}`);
+    
+    // Ensure directory exists in production
+    if (process.env.NODE_ENV === 'production') {
+      const fs = await import('fs/promises');
+      const dataDir = path.dirname(dbPath);
+      try {
+        await fs.access(dataDir);
+      } catch {
+        await fs.mkdir(dataDir, { recursive: true });
+        console.log(`Created directory: ${dataDir}`);
+      }
+    }
+    
     db = await open({
       filename: dbPath,
       driver: sqlite3.Database
