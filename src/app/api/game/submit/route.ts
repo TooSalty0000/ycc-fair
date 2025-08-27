@@ -16,8 +16,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if booth is open
-    const boothOpen = await isBoothOpen();
+    // Check if booth is open - use user's timezone
+    const userTimezone = request.headers.get('x-timezone') || undefined;
+    const boothOpen = await isBoothOpen(userTimezone);
     if (!boothOpen) {
       return NextResponse.json(
         { 

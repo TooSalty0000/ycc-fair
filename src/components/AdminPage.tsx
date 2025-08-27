@@ -311,6 +311,9 @@ export function AdminPage({ onLogout }: AdminPageProps) {
 
   const handleBoothHoursChange = async () => {
     try {
+      // Get user's current timezone
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      
       const response = await fetch("/api/admin/settings", {
         method: "POST",
         headers: {
@@ -320,7 +323,8 @@ export function AdminPage({ onLogout }: AdminPageProps) {
         body: JSON.stringify({
           action: "updateBoothHours",
           openTime: boothOpenTime,
-          closeTime: boothCloseTime
+          closeTime: boothCloseTime,
+          timezone: userTimezone
         })
       })
 

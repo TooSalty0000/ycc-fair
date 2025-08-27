@@ -382,7 +382,7 @@ export async function getBoothHours() {
   };
 }
 
-export async function setBoothHours(openTime: string, closeTime: string) {
+export async function setBoothHours(openTime: string, closeTime: string, timezone?: string) {
   const database = await getDatabase();
   
   await database.run(`
@@ -392,13 +392,31 @@ export async function setBoothHours(openTime: string, closeTime: string) {
   await database.run(`
     INSERT OR REPLACE INTO settings (key, value) VALUES ('booth_close_time', ?)
   `, closeTime);
+  
+  // Store timezone for reference (optional but helpful for debugging)
+  if (timezone) {
+    await database.run(`
+      INSERT OR REPLACE INTO settings (key, value) VALUES ('booth_timezone', ?)
+    `, timezone);
+  }
 }
 
-export async function isBoothOpen() {
+export async function isBoothOpen(userTimezone?: string) {
   const { openTime, closeTime } = await getBoothHours();
+  
+  // Use provided timezone or default to system timezone
+  const timezone = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
+  // Get current time in the specified timezone
   const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinutes = now.getMinutes();
+  const timeInTimezone = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(now);
+  
+  const [currentHour, currentMinutes] = timeInTimezone.split(':').map(Number);
   const currentTotalMinutes = currentHour * 60 + currentMinutes;
   
   const [openHour, openMin] = openTime.split(':').map(Number);

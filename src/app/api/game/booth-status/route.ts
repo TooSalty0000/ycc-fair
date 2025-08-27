@@ -7,15 +7,19 @@ export async function GET(request: NextRequest) {
     // Verify authentication
     await requireAuth(request);
 
+    // Get user's timezone from headers or use default
+    const userTimezone = request.headers.get('x-timezone') || undefined;
+
     // Get booth operating hours and current status
     const boothHours = await getBoothHours();
-    const isOpen = await isBoothOpen();
+    const isOpen = await isBoothOpen(userTimezone);
 
     return NextResponse.json({
       isOpen,
       openTime: boothHours.openTime,
       closeTime: boothHours.closeTime,
-      currentTime: new Date().toISOString()
+      currentTime: new Date().toISOString(),
+      timezone: userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
     });
 
   } catch (error) {

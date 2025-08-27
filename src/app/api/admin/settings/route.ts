@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     const db = await getDatabase();
 
-    const { action, rate, completions, openTime, closeTime } = await request.json();
+    const { action, rate, completions, openTime, closeTime, timezone } = await request.json();
 
     if (action === 'updateCouponRate') {
       if (typeof rate !== 'number' || rate < 0 || rate > 100) {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '시간 형식이 올바르지 않습니다 (HH:MM)' }, { status: 400 });
       }
 
-      await setBoothHours(openTime, closeTime);
+      await setBoothHours(openTime, closeTime, timezone);
 
       return NextResponse.json({ 
         success: true, 

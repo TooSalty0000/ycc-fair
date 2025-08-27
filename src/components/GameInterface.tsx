@@ -130,9 +130,13 @@ export function GameInterface({ user }: GameInterfaceProps) {
 
   const loadBoothStatus = async () => {
     try {
+      // Get user's current timezone
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      
       const response = await fetch("/api/game/booth-status", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          'X-Timezone': userTimezone,
         },
       })
 
@@ -183,11 +187,15 @@ export function GameInterface({ user }: GameInterfaceProps) {
     setRecentSubmission(null)
 
     try {
+      // Get user's current timezone
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      
       const response = await fetch("/api/game/submit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          'X-Timezone': userTimezone,
         },
         body: JSON.stringify({ imageData: photoData }),
       })
