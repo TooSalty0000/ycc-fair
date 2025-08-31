@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
+// Initialize Gemini AI (server-side only)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export interface ImageVerificationResult {
   success: boolean;
@@ -30,7 +30,7 @@ export const verifyImageWithGemini = async (
 ): Promise<ImageVerificationResult> => {
   try {
     // Check if API key is available
-    if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       console.error('Gemini API key not found');
       throw new Error('AI 검증 서비스가 설정되지 않았습니다');
     }
