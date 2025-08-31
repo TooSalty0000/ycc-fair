@@ -54,10 +54,25 @@ export const verifyImageWithGemini = async (
     const imagePart = base64ToGenerativeAIPart(imageData, fullMimeType);
 
     const prompt = `
-You are an image verification system for a photo scavenger hunt game. Your task is to:
+You are an image verification system for a photo scavenger hunt game at a club fair. Your task is to:
 
 1. Determine if the image contains or represents the keyword: "${keyword}"
 2. Detect if the image appears to be taken of a screen (phone, computer, tablet, etc.) to prevent cheating
+
+SPECIAL CLUB BOOTH DETECTION:
+${keyword.includes('(동아리)') ? `
+IMPORTANT: "${keyword}" refers to a CLUB BOOTH at the fair, not a regular object!
+- The keyword format "NAME (동아리)" means you should look for ANY content related to the "${keyword.replace(' (동아리)', '')}" club
+- Accept ANY of the following as valid:
+  * The club's name displayed on banners, posters, or signs
+  * Club members wearing club merchandise or name tags
+  * Club activities, demonstrations, or displays
+  * Club booth decorations or promotional materials
+  * People interacting with the club booth
+  * Any items or activities clearly associated with this specific club
+- The club name "${keyword.replace(' (동아리)', '')}" must be visible or clearly identifiable in some way
+- Be generous in accepting club-related content as long as it's clearly from that specific club's booth
+` : ''}
 
 ANTI-CHEATING DETECTION:
 - Look for signs that this photo was taken of another screen/device:
@@ -70,8 +85,11 @@ ANTI-CHEATING DETECTION:
   - Image quality that suggests it's a photo of a photo/screen
 
 KEYWORD VERIFICATION:
-- The image should contain the actual object, concept, or scene related to "${keyword}"
-- Look for real-world, physical manifestations of the keyword
+${keyword.includes('(동아리)') ? 
+`- For club booths: Look for ANY content related to the "${keyword.replace(' (동아리)', '')}" club
+- The club identity must be clear (through text, logos, or obvious club activities)` :
+`- The image should contain the actual object, concept, or scene related to "${keyword}"
+- Look for real-world, physical manifestations of the keyword`}
 - The keyword can be represented directly or conceptually
 - Be reasonably flexible but maintain accuracy
 
@@ -129,9 +147,19 @@ Analyze this image:`;
     if (isScreen) {
       message = '화면을 촬영한 사진으로 보입니다. 실제 물체를 촬영해주세요!';
     } else if (!keywordMatch) {
-      message = `이 사진에 "${keyword}"가 포함되지 않은 것 같습니다. 다시 시도해보세요!`;
+      if (keyword.includes('(동아리)')) {
+        const clubName = keyword.replace(' (동아리)', '');
+        message = `이 사진에 "${clubName}" 동아리 부스가 포함되지 않은 것 같습니다. 해당 동아리 부스를 찾아 촬영해주세요!`;
+      } else {
+        message = `이 사진에 "${keyword}"가 포함되지 않은 것 같습니다. 다시 시도해보세요!`;
+      }
     } else {
-      message = `사진에서 "${keyword}"를 찾았습니다!`;
+      if (keyword.includes('(동아리)')) {
+        const clubName = keyword.replace(' (동아리)', '');
+        message = `훌륭합니다! "${clubName}" 동아리 부스를 찾았습니다!`;
+      } else {
+        message = `사진에서 "${keyword}"를 찾았습니다!`;
+      }
     }
 
     return {
